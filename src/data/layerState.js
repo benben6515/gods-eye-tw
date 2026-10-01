@@ -640,6 +640,26 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     optionOwner: 'satellites',
   }),
   Object.freeze({
+    id: 'taiwan-aqi',
+    token: '0',
+    disposition: 'enabled-only',
+  }),
+  Object.freeze({
+    id: 'taiwan-cctv',
+    token: '3',
+    disposition: 'enabled-only',
+  }),
+  Object.freeze({
+    id: 'taiwan-quake',
+    token: '4',
+    disposition: 'enabled-only',
+  }),
+  Object.freeze({
+    id: 'taiwan-typhoon',
+    token: '5',
+    disposition: 'enabled-only',
+  }),
+  Object.freeze({
     id: 'telegeography-submarine-cables',
     token: 'u',
     disposition: 'enabled-only',

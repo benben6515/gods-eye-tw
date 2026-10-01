@@ -345,6 +345,13 @@ export const DATA_CREDITS = [
       '(<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>)',
   },
   {
+    key: 'taiwan-layers',
+    html:
+      '台灣圖層資料：道路攝影、地震、颱風與空氣品質 — 資料由 ' +
+      '<a href="https://tdx.transportdata.tw/" target="_blank" rel="noopener">交通部TDX平臺</a>、' +
+      '交通部中央氣象署及環境部提供，經自建後端轉介（政府資料開放授權條款）',
+  },
+  {
     key: 'telegeography',
     html:
       'Submarine cables: © TeleGeography — ' +

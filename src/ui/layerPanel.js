@@ -49,6 +49,10 @@ const PANEL_GROUPS = [
     ids: ['rocket-launches', 'earthquakes', 'local-firms', 'fire-perimeters'],
   },
   {
+    label: '台灣',
+    ids: ['taiwan-quake', 'taiwan-cctv', 'taiwan-typhoon', 'taiwan-aqi'],
+  },
+  {
     label: 'Weather',
     ids: [
       'wind',
@@ -76,6 +80,10 @@ const PANEL_LABELS = {
   'alpr-cameras': 'Mapped ALPR Cameras',
   'local-datacenters': 'Data Centers',
   'local-firms': 'Active Fires',
+  'taiwan-quake': '台灣地震',
+  'taiwan-cctv': '台灣道路攝影',
+  'taiwan-typhoon': '颱風路徑',
+  'taiwan-aqi': '空氣品質',
 };
 
 function panelLabel(layer) {

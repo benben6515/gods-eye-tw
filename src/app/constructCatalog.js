@@ -25,6 +25,10 @@ import { createApplicationFirms } from './layers/firms.js';
 import { createApplicationEarthquakes } from './layers/earthquakes.js';
 import { createApplicationFirePerimeters } from './layers/perimeters.js';
 import { createApplicationCables } from './layers/submarineCables.js';
+import { createApplicationTaiwanQuake } from './layers/taiwanQuake.js';
+import { createApplicationTaiwanCctv } from './layers/taiwanCctv.js';
+import { createApplicationTaiwanTyphoon } from './layers/taiwanTyphoon.js';
+import { createApplicationTaiwanAqi } from './layers/taiwanAqi.js';
 import { createInfrastructureLayers } from '../data/infrastructure.js';
 import { localGeoJsonServices } from './localGeojsonServices.js';
 import { createBhoteKoshiEventLayer } from '../data/bhoteKoshiEvent.js';
@@ -55,6 +59,10 @@ const SOURCE_METHODS = Object.freeze({
   earthquakes: ['getSnapshot'],
   'fire-perimeters': ['getSnapshot'],
   cables: ['fetch'],
+  'taiwan-quake': ['getSnapshot'],
+  'taiwan-cctv': ['getSnapshot'],
+  'taiwan-typhoon': ['getSnapshot'],
+  'taiwan-aqi': ['getSnapshot'],
 });
 
 /**
@@ -144,6 +152,10 @@ export function createApplicationCatalog({
           ...(resolveAsset ? { resolveAsset } : {}),
         }),
         createApplicationEarthquakes({ source: sources.earthquakes }),
+        createApplicationTaiwanQuake({ source: sources['taiwan-quake'] }),
+        createApplicationTaiwanCctv({ source: sources['taiwan-cctv'] }),
+        createApplicationTaiwanTyphoon({ source: sources['taiwan-typhoon'] }),
+        createApplicationTaiwanAqi({ source: sources['taiwan-aqi'] }),
         createApplicationFirePerimeters({
           source: sources['fire-perimeters'],
         }),
