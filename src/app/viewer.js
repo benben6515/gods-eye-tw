@@ -125,6 +125,9 @@ export function createApplicationViewer({ container, creditContainer }) {
   });
   try {
     viewer.targetFrameRate = 60;
+    // Debug/testing handle: lets tooling and QA scripts reach the viewer
+    // (fly-to, pick entities) without touching module internals.
+    if (typeof window !== 'undefined') window.__gevViewer = viewer;
     // Before any tile builds a draw command: Cesium's per-vertex model
     // atmosphere fails to LINK on Apple's Metal backend and kills the
     // render loop. See app/atmosphereCompat.js.
