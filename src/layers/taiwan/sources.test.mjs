@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createTaiwanAqiSource,
   createTaiwanCctvSource,
+  createTaiwanCctvStreamResolver,
   createTaiwanQuakeSource,
   createTaiwanTyphoonSource,
 } from './sources.js';
@@ -84,4 +85,39 @@ test('sources reject payloads that are not the documented shape', async () => {
     /Malformed Taiwan quake snapshot/,
   );
   quake.client.destroy();
+});
+
+test('cctv stream resolver absolutizes the backend proxy URL and swallows failures', async () => {
+  const payload = {
+    configured: true,
+    status: 'ready',
+    url: '/taiwan/cctv/live?city=Taipei&id=001',
+    expiresInSeconds: 150,
+    retryAfterSeconds: null,
+  };
+  const { client, paths } = clientRecordingPaths(payload);
+  const resolver = createTaiwanCctvStreamResolver({ client });
+
+  const resolved = await resolver.resolve({ city: 'Taipei', id: '001' });
+
+  assert.equal(
+    paths[0],
+    '/taiwan/cctv/stream?city=Taipei&id=001',
+    'hits the documented stream endpoint',
+  );
+  assert.equal(
+    resolved.url,
+    'http://localhost:3000/taiwan/cctv/live?city=Taipei&id=001',
+    'relative proxy manifest becomes absolute against the backend base',
+  );
+  assert.equal(resolved.status, 'ready');
+
+  const failing = createTaiwanCctvStreamResolver({
+    client: createTaiwanApiClient({
+      fetchImpl: async () => {
+        throw new Error('offline');
+      },
+    }),
+  });
+  assert.equal(await failing.resolve({ city: 'Taipei', id: '002' }), null);
 });

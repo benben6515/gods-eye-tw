@@ -88,7 +88,7 @@ export function createTaiwanApiClient({
   };
 
   /** GET one JSON endpoint, gated by the shared backoff window. */
-  async function get(path, { signal } = {}) {
+  async function get(path, { signal, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
     signal?.throwIfAborted();
     if (gateTimer) {
       throw new TaiwanBackendUnavailableError('未連線後端', { retryAt });
@@ -107,7 +107,7 @@ export function createTaiwanApiClient({
     timeoutHandle = setTimer(() => {
       timedOut = true;
       deadline.abort(new Error('Taiwan backend request timeout'));
-    }, REQUEST_TIMEOUT_MS);
+    }, timeoutMs);
     try {
       const response = await fetchImpl(`${base}${path}`, {
         cache: 'no-store',
@@ -137,6 +137,14 @@ export function createTaiwanApiClient({
 
   return {
     get,
+    /** Resolve a backend-relative path against this client's base origin. */
+    resolveUrl(path) {
+      try {
+        return new URL(path, base).toString();
+      } catch {
+        return path;
+      }
+    },
     /** One-line liveness snapshot for layer stats. */
     getState() {
       return {

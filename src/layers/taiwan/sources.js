@@ -54,6 +54,39 @@ export function createTaiwanCctvSource({
   };
 }
 
+/**
+ * Resolves one camera's playable HLS URL through the backend. Taipei cameras
+ * hide behind an on-demand transcoder whose origin serves no CORS and rotates
+ * session paths — the backend hands back a same-origin proxy manifest URL
+ * (relative), which this resolver absolutizes against the backend base.
+ * The first open can legitimately take 10–30s, hence the 30s call timeout.
+ * Returns { configured, status, url, ... } with an absolute url, or null.
+ */
+export function createTaiwanCctvStreamResolver({ client } = {}) {
+  if (typeof client?.get !== 'function')
+    throw new TypeError('Taiwan CCTV stream resolver requires a backend client');
+  return {
+    async resolve({ city, id, signal } = {}) {
+      if (!city || !id) return null;
+      const params = new URLSearchParams({ city: String(city), id: String(id) });
+      let payload;
+      try {
+        payload = await client.get(`/taiwan/cctv/stream?${params.toString()}`, {
+          signal,
+          timeoutMs: 30_000,
+        });
+      } catch {
+        return null;
+      }
+      if (!payload || typeof payload.status !== 'string') return null;
+      if (payload.url) {
+        return { ...payload, url: client.resolveUrl(payload.url) };
+      }
+      return payload;
+    },
+  };
+}
+
 export function createTaiwanTyphoonSource({ client } = {}) {
   if (typeof client?.get !== 'function')
     throw new TypeError('Taiwan typhoon source requires a backend client');

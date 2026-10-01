@@ -153,7 +153,10 @@ export function createApplicationCatalog({
         }),
         createApplicationEarthquakes({ source: sources.earthquakes }),
         createApplicationTaiwanQuake({ source: sources['taiwan-quake'] }),
-        createApplicationTaiwanCctv({ source: sources['taiwan-cctv'] }),
+        createApplicationTaiwanCctv({
+          source: sources['taiwan-cctv'],
+          resolver: sources['taiwan-cctv-stream'],
+        }),
         createApplicationTaiwanTyphoon({ source: sources['taiwan-typhoon'] }),
         createApplicationTaiwanAqi({ source: sources['taiwan-aqi'] }),
         createApplicationFirePerimeters({

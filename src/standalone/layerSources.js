@@ -20,6 +20,7 @@ import { createFirmsSource } from '../layers/firms/source.js';
 import {
   createTaiwanAqiSource,
   createTaiwanCctvSource,
+  createTaiwanCctvStreamResolver,
   createTaiwanQuakeSource,
   createTaiwanTyphoonSource,
   createTaiwanApiClient,
@@ -55,6 +56,7 @@ export function createStandaloneLayerSources() {
     cyclones: createCycloneSource(),
     'taiwan-quake': createTaiwanQuakeSource({ client: taiwan }),
     'taiwan-cctv': createTaiwanCctvSource({ client: taiwan }),
+    'taiwan-cctv-stream': createTaiwanCctvStreamResolver({ client: taiwan }),
     'taiwan-typhoon': createTaiwanTyphoonSource({ client: taiwan }),
     'taiwan-aqi': createTaiwanAqiSource({ client: taiwan }),
   };

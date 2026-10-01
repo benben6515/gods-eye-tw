@@ -13,6 +13,7 @@ export {
 export {
   createTaiwanAqiSource,
   createTaiwanCctvSource,
+  createTaiwanCctvStreamResolver,
   createTaiwanQuakeSource,
   createTaiwanTyphoonSource,
 } from './sources.js';

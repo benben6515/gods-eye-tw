@@ -32,6 +32,7 @@ export const TAIWAN_CCTV_CITIES = Object.freeze([
  */
 export function createTaiwanCctvLayer({
   source,
+  resolver,
   cesium = Cesium,
   document = globalThis.document,
   container = null,
@@ -161,6 +162,12 @@ export function createTaiwanCctvLayer({
       panel = createPanel({
         document,
         container: container || viewer.container || undefined,
+        // The resolver needs the *current* city — closure over the live var,
+        // not a snapshot at init time.
+        resolveStream:
+          typeof resolver?.resolve === 'function'
+            ? ({ id, signal } = {}) => resolver.resolve({ city, id, signal })
+            : undefined,
       });
       console.log('[Data:TaiwanCctv] Initialized');
     },

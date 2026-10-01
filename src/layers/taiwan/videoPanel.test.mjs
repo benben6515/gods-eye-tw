@@ -190,3 +190,137 @@ test('the panel replaces cameras, reports missing streams, and releases its DOM'
     'destroy removes the panel root',
   );
 });
+
+/** Panel harness with node:test-friendly fakes for the resolve flow. */
+function createResolveHarness({ resolveStream }) {
+  const created = [];
+  const document = {
+    createElement(tag) {
+      const node = {
+        tag,
+        children: [],
+        style: {},
+        hidden: false,
+        textContent: '',
+        append(...kids) {
+          this.children.push(...kids);
+        },
+        remove() {
+          this.removed = true;
+        },
+        setAttribute() {},
+        removeAttribute() {},
+        load() {},
+        addEventListener() {},
+        removeEventListener() {},
+      };
+      created.push(node);
+      return node;
+    },
+  };
+  const attached = [];
+  const timers = [];
+  const panel = createTaiwanCctvVideoPanel({
+    document,
+    container: { appendChild() {} },
+    attachVideo: (_video, url) => {
+      attached.push(url);
+      return { dispose: () => {} };
+    },
+    resolveStream,
+    setTimer: (fn) => {
+      timers.push(fn);
+      return timers.length;
+    },
+    clearTimer: () => {},
+  });
+  const root = () =>
+    created.find((node) => node.tag === 'div' && node.className === 'taiwan-cctv-panel');
+  const statusNode = () => root()?.children[3];
+  const flushTimers = () => {
+    for (const fn of timers.splice(0)) fn();
+  };
+  return { panel, attached, timers, flushTimers, statusNode };
+}
+
+test('transcoder-backed cameras resolve through the backend before attaching', async () => {
+  const resolveCalls = [];
+  const { panel, attached, statusNode } = createResolveHarness({
+    resolveStream: async ({ id }) => {
+      resolveCalls.push(id);
+      return { status: 'ready', url: 'https://hls.bote.gov.taipei/hls/001/7780/index.m3u8' };
+    },
+  });
+
+  panel.open({
+    id: '001',
+    name: '市民大道一段',
+    videoUrl: 'https://hls.bote.gov.taipei/live/index.html?id=001',
+  });
+  assert.equal(attached.length, 0, 'no attach before resolution completes');
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(resolveCalls, ['001']);
+  assert.deepEqual(attached, ['https://hls.bote.gov.taipei/hls/001/7780/index.m3u8']);
+  assert.equal(statusNode().style.display, 'none', 'status clears once attached');
+  panel.close();
+});
+
+test('converting cameras surface progress and auto-retry until ready', async () => {
+  let calls = 0;
+  const { panel, attached, flushTimers, statusNode } = createResolveHarness({
+    resolveStream: async () => {
+      calls += 1;
+      return calls < 3
+        ? { status: 'converting', retryAfterSeconds: 2 }
+        : { status: 'ready', url: 'https://hls.example/ready.m3u8' };
+    },
+  });
+
+  panel.open({ id: '002', name: '環河快速道路', videoUrl: 'https://hls.example/player.html?id=002' });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls, 1);
+  assert.match(statusNode().textContent || '', /串流喚醒中/);
+
+  flushTimers();
+  await new Promise((resolve) => setImmediate(resolve));
+  flushTimers();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(calls, 3, 'retried until the transcoder was ready');
+  assert.deepEqual(attached, ['https://hls.example/ready.m3u8']);
+  panel.close();
+});
+
+test('unavailable cameras report offline instead of retrying forever', async () => {
+  const { panel, attached, statusNode } = createResolveHarness({
+    resolveStream: async () => ({ status: 'unavailable', url: null }),
+  });
+
+  panel.open({ id: '003', name: '中興大橋引道', videoUrl: 'https://hls.example/player.html?id=003' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.match(statusNode().textContent || '', /離線或維護中/);
+  assert.equal(attached.length, 0);
+  panel.close();
+});
+
+test('a resolution that settles after close() must not attach or reopen', async () => {
+  let release;
+  const { panel, attached } = createResolveHarness({
+    resolveStream: () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  });
+
+  panel.open({ id: '004', name: '延遲攝影機', videoUrl: 'https://hls.example/player.html?id=004' });
+  panel.close();
+  release({ status: 'ready', url: 'https://hls.example/late.m3u8' });
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(attached.length, 0, 'the stale session never attaches');
+  assert.equal(panel.isOpen(), false);
+  panel.destroy();
+});

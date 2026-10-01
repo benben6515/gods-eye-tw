@@ -124,14 +124,24 @@ export function attachTaiwanVideo(
 /**
  * Create the floating camera panel. Owns its DOM and decoder; the layer calls
  * open(camera) / close() / destroy().
+ *
+ * resolveStream (optional) resolves playable HLS URLs for cameras whose TDX
+ * VideoStreamURL is not a direct .m3u8 — Taipei cameras sit behind an
+ * on-demand transcoder, so the first open can take 10–30 seconds. The panel
+ * surfaces the converting state and auto-retries until ready or a bounded
+ * retry budget is spent.
  */
 export function createTaiwanCctvVideoPanel({
   document = globalThis.document,
   container = document?.body,
   attachVideo = attachTaiwanVideo,
+  resolveStream = null,
   attribution = '資料來源：交通部TDX平臺',
+  setTimer = (fn, ms) => setTimeout(fn, ms),
+  clearTimer = (handle) => clearTimeout(handle),
 } = {}) {
   if (!container) throw new TypeError('A video panel container is required');
+  const MAX_RESOLVE_RETRIES = 6;
   let root = null;
   let video = null;
   let playback = null;
@@ -139,8 +149,17 @@ export function createTaiwanCctvVideoPanel({
   let metaNode = null;
   let statusNode = null;
   let closeButton = null;
+  // Bumped on close()/open() so a stale in-flight resolution (backend calls
+  // can take tens of seconds) never touches a newer panel session.
+  let openToken = 0;
+  let resolveTimer = null;
 
   const close = () => {
+    openToken += 1;
+    if (resolveTimer) {
+      clearTimer(resolveTimer);
+      resolveTimer = null;
+    }
     playback?.dispose();
     playback = null;
     if (root) root.hidden = true;
@@ -161,6 +180,47 @@ export function createTaiwanCctvVideoPanel({
   };
 
   const onCloseClick = () => close();
+
+  const showStatus = (message) => {
+    statusNode.textContent = message;
+    statusNode.style.display = 'block';
+  };
+
+  /** Resolve-then-attach loop for transcoder-backed cameras. */
+  async function resolveAndPlay(camera, token, attempt = 0) {
+    let result = null;
+    try {
+      result = await resolveStream({ id: camera.id, signal: undefined });
+    } catch {
+      result = null;
+    }
+    if (token !== openToken || !root || root.hidden) return;
+
+    if (result?.status === 'ready' && result.url) {
+      statusNode.style.display = 'none';
+      playback = attachVideo(video, result.url, {
+        onFailure: () => {
+          if (!root || root.hidden) return;
+          showStatus('直播連線失敗，稍後再試');
+        },
+      });
+      return;
+    }
+
+    if (result?.status === 'converting' && attempt < MAX_RESOLVE_RETRIES) {
+      showStatus('串流喚醒中，首次開台約需 10–30 秒…');
+      const delay = Math.max(1, result.retryAfterSeconds || 2) * 1000;
+      resolveTimer = setTimer(() => {
+        resolveTimer = null;
+        if (token === openToken) void resolveAndPlay(camera, token, attempt + 1);
+      }, delay);
+      return;
+    }
+
+    if (result?.status === 'unavailable') showStatus('攝影機離線或維護中');
+    else if (result?.status === 'unsupported') showStatus('此攝影機暫不支援直接播放');
+    else showStatus('直播連線失敗，稍後再試');
+  }
 
   function ensureDom() {
     if (root) return;
@@ -260,20 +320,27 @@ export function createTaiwanCctvVideoPanel({
           .filter(Boolean)
           .join(' · ') || camera.id;
       statusNode.style.display = 'none';
+      root.hidden = false;
+
       if (!camera.videoUrl) {
-        statusNode.textContent = '此攝影機未提供直播網址';
-        statusNode.style.display = 'block';
-        root.hidden = false;
+        showStatus('此攝影機未提供直播網址');
         return;
       }
-      playback = attachVideo(video, camera.videoUrl, {
-        onFailure: () => {
-          if (!root || root.hidden) return;
-          statusNode.textContent = '直播連線失敗，稍後再試';
-          statusNode.style.display = 'block';
-        },
-      });
-      root.hidden = false;
+
+      const isDirectHls = /\.m3u8(\?|#|$)/i.test(camera.videoUrl);
+      if (isDirectHls || typeof resolveStream !== 'function') {
+        playback = attachVideo(video, camera.videoUrl, {
+          onFailure: () => {
+            if (!root || root.hidden) return;
+            showStatus('直播連線失敗，稍後再試');
+          },
+        });
+        return;
+      }
+
+      const token = openToken;
+      showStatus('正在喚醒攝影機串流…');
+      void resolveAndPlay(camera, token);
     },
     isOpen() {
       return Boolean(root && !root.hidden);
