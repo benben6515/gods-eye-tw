@@ -32,7 +32,9 @@ export function voiceRecognitionSupported(scope = globalThis) {
 function styleEl(document) {
   const style = document.createElement('style');
   style.textContent = `
-.gev-voice-root { display: inline-flex; align-items: center; gap: 6px; position: relative; }
+.gev-voice-root { display: inline-flex; align-items: center; gap: 6px; position: relative;
+  /* The HUD overlay chain is pointer-events:none; the console opts back in. */
+  pointer-events: auto; }
 .gev-voice-mic { background: rgba(10, 25, 18, 0.85); border: 1px solid rgba(120, 255, 170, 0.35);
   color: #8dffb0; cursor: pointer; font: 600 11px/1 ui-monospace, monospace; letter-spacing: 0.08em;
   padding: 4px 8px; border-radius: 4px; }
