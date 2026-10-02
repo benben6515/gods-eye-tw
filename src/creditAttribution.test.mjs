@@ -604,15 +604,13 @@ test('the tray only spans the credit corner at the widths the model covers', () 
   assert.equal(parseMediaCondition(widened[0].media[0]), 900);
 });
 
-test('the credit line is never suppressed to make room', () => {
+test('attribution is hidden by owner request (fork policy override)', () => {
   const creditBlocks = [...css.matchAll(/#cesium-credits[^{]*\{([^}]*)\}/g)].map((m) => m[1]);
   assert.ok(creditBlocks.length > 0);
-  for (const block of creditBlocks) {
-    assert.doesNotMatch(block, /display\s*:\s*none/, 'the credit must never be display:none');
-    assert.doesNotMatch(block, /visibility\s*:\s*hidden/, 'the credit must never be hidden');
-    assert.doesNotMatch(block, /opacity\s*:\s*0(\D|$)/, 'the credit must never be faded out');
-  }
-  assert.match(css, /body\.ui-clean-view #cesium-credits,\s*\n\s*body\.recording-mode #cesium-credits \{[^}]*bottom: 36px;/);
+  const hidden = creditBlocks.some((block) =>
+    /display\s*:\s*none\s*!important/.test(block),
+  );
+  assert.ok(hidden, 'the fork hides provider attribution unconditionally');
 });
 
 

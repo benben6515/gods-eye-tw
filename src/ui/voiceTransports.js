@@ -1,5 +1,6 @@
 import { createActionTools } from '../voice/actionSchemas.js';
 import { ACTION_DESCRIPTIONS } from '../../server/providers/openai/toolDescriptions.js';
+import { getVoiceLang, voiceLangConfig } from './voiceLang.js';
 import { readStoredToken } from './siteGate.js';
 
 // Z.ai rejects the legacy flat tool shape (`tools[0].function can not be
@@ -31,13 +32,14 @@ async function chatViaFetch(fetchImpl, apiBase, messages) {
 }
 
 async function ttsViaFetch(fetchImpl, apiBase, text, voice) {
+  const voiceName = voice || voiceLangConfig().tts;
   const response = await fetchImpl(`${apiBase}/voice/tts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${siteBearer()}`,
     },
-    body: JSON.stringify({ text, voice }),
+    body: JSON.stringify({ text, voice: voiceName }),
   });
   if (!response.ok) throw new Error(`tts HTTP ${response.status}`);
   return response.blob();
@@ -56,11 +58,11 @@ export function createSpeaker({
   apiBase,
   audioFactory = typeof Audio !== 'undefined' ? () => new Audio() : null,
   objectUrl = (blob) => URL.createObjectURL(blob),
-  voice = 'zh-TW-HsiaoChenNeural',
 }) {
   return async function speak(text) {
     if (typeof audioFactory !== 'function') throw new Error('tts unavailable');
-    const blob = await ttsViaFetch(fetchImpl, apiBase, text, voice);
+    // Voice resolved per call — follows the 中/EN switch live.
+    const blob = await ttsViaFetch(fetchImpl, apiBase, text);
     const audio = audioFactory(blob);
     audio.src = objectUrl(blob);
     // Handlers before play: instant-finish media must not race the binding.

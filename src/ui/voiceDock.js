@@ -5,6 +5,7 @@ import {
   createSpeaker,
   executeMapAction,
 } from './voiceTransports.js';
+import { voiceLangConfig, getVoiceLang, setVoiceLang } from './voiceLang.js';
 
 /**
  * The dock voice UI (the original God's Eye mic) reborn on the self-hosted
@@ -54,7 +55,10 @@ export function mountVoiceDock({
   document: documentImpl = document,
 } = {}) {
   const ui = createVoiceControl();
-  ui.tierButton.hidden = true; // no tiers on the free self-hosted stack
+  // The heading tier slot becomes the 中/EN language switch.
+  ui.tierButton.hidden = false;
+  ui.tierButton.textContent = getVoiceLang() === 'zh' ? 'EN' : '中文';
+  ui.tierButton.title = 'Switch voice language';
   ui.costValue.textContent = 'ZAI · FREE';
   ui.helpDetail.textContent = '點一下開始錄音 · 再點一下送出';
 
@@ -110,6 +114,7 @@ export function mountVoiceDock({
     if (!session.startListening()) return;
     recording = true;
     heard = '';
+    if (recognition) recognition.lang = voiceLangConfig().stt; // 中/EN live switch
     try {
       recognition?.start();
     } catch {
@@ -163,6 +168,13 @@ export function mountVoiceDock({
       submitHeard();
     }
     // thinking/speaking: busy — ignore extra clicks
+  });
+
+  ui.tierButton.addEventListener('click', () => {
+    const next = getVoiceLang() === 'zh' ? 'en' : 'zh';
+    setVoiceLang(next);
+    ui.tierButton.textContent = next === 'zh' ? 'EN' : '中文';
+    ui.detail.textContent = next === 'zh' ? '語音切換：中文' : 'Voice: English';
   });
 
   return { session, ui };

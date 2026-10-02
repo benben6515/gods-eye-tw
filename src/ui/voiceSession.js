@@ -157,8 +157,9 @@ export function createVoiceSession({ chat, systemPrompt = '', executeAction = nu
     if (!fsm.transition('thinking')) return; // e.g. cancel raced the submit
     notify({ type: 'thinking', transcript });
     try {
+      const prompt = typeof systemPrompt === 'function' ? systemPrompt() : systemPrompt;
       const reply = await converse(
-        assembleChatMessages(transcript, history.slice(-VOICE_HISTORY_LIMIT), systemPrompt),
+        assembleChatMessages(transcript, history.slice(-VOICE_HISTORY_LIMIT), prompt),
       );
       if (!reply) throw new Error('empty reply');
       history.push({ user: transcript, reply });

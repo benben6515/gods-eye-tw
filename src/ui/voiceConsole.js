@@ -1,5 +1,6 @@
 import { createVoiceSession } from './voiceSession.js';
 import { createChatClient, createSpeaker, executeMapAction } from './voiceTransports.js';
+import { voiceLangConfig } from './voiceLang.js';
 
 export { executeMapAction };
 
@@ -16,12 +17,6 @@ export { executeMapAction };
  */
 
 const VOICE_LANG = 'zh-TW';
-const CHAT_SYSTEM_PROMPT =
-  '你是「上帝之眼」台灣即時情資儀表板的語音助理，能透過工具直接控制地圖：' +
-  '飛往地點、調整視角、開關圖層、查看 CCTV 攝影機、追蹤飛機等。' +
-  '當使用者想移動地圖、查看資料或操作儀表板時，一律呼叫對應工具（不要用文字描述動作），' +
-  '工具執行完成後只回一句繁體中文短語確認（十五個字以內，例如「帶你去看台北 101」）。' +
-  '無法用工具完成的需求，用繁體中文簡短回答並引導回情資查詢。';
 
 /** True when the browser exposes a SpeechRecognition constructor. */
 export function voiceRecognitionSupported(scope = globalThis) {
@@ -159,7 +154,7 @@ export function mountVoiceConsole(
   let recognition = null;
 
   const session = createVoiceSession({
-    systemPrompt: CHAT_SYSTEM_PROMPT,
+    systemPrompt: () => voiceLangConfig().prompt,
     chat: createChatClient({ fetchImpl, apiBase }),
     executeAction: executeMapAction,
     speak: speakReply,
@@ -270,6 +265,7 @@ export function mountVoiceConsole(
         if (session.state === 'idle') {
           if (session.startListening()) {
             armSilenceWatchdog();
+            if (recognition) recognition.lang = voiceLangConfig().stt;
             try {
               recognition.start();
             } catch {
