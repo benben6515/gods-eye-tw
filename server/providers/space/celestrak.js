@@ -50,20 +50,32 @@ export function celestrakProxy() {
 
   async function fetchUpstream(group) {
     const url = celestrakTleUrl(group);
-    const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(20000),
-      // CelesTrak 403s bulk groups (e.g. `active`) unless the request carries a
-      // descriptive User-Agent with a contact point.
-      headers: {
-        'User-Agent':
-          'gods-eye-view-celestrak-proxy/1.0 (+https://github.com/bilawalsidhu/gods-eye-view)',
-      },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const body = await res.text();
-    // An upstream error page parses to zero TLEs — treat as failure, keep cache.
-    if (!/^1 /m.test(body)) throw new Error('no TLE lines in response');
-    return { at: Date.now(), body };
+    const headers = {
+      'User-Agent':
+        'gods-eye-view-celestrak-proxy/1.0 (+https://github.com/bilawalsidhu/gods-eye-view)',
+    };
+    // CelesTrak is slow/flaky toward some datacenter egress IPs (observed
+    // connect timeouts from Cloud Run that succeed on retry) — one retry on
+    // any failure before giving up; serve-stale covers the rest.
+    let lastError;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const res = await fetch(url.toString(), {
+          signal: AbortSignal.timeout(20000),
+          // CelesTrak 403s bulk groups (e.g. `active`) unless the request
+          // carries a descriptive User-Agent with a contact point.
+          headers,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = await res.text();
+        // An upstream error page parses to zero TLEs — treat as failure, keep cache.
+        if (!/^1 /m.test(body)) throw new Error('no TLE lines in response');
+        return { at: Date.now(), body };
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError;
   }
 
   const installMiddleware = (server) => {
