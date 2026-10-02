@@ -96,8 +96,9 @@ export function mountVoiceDock({
       }
       // Continuous conversation: while the toggle is on, re-arm the mic as
       // soon as the pipeline is idle again (thinking/speaking pause it so the
-      // spoken reply is never fed back into recognition).
-      if (event.type === 'idle' && voiceMode) restartListening();
+      // spoken reply is never fed back into recognition). Off the sync stack —
+      // a start() failure must not recurse idle→restart synchronously.
+      if (event.type === 'idle' && voiceMode) setTimeout(restartListening, 120);
     },
   });
 
@@ -115,7 +116,16 @@ export function mountVoiceDock({
       try {
         recognition.start();
       } catch {
-        session.stopListening();
+        // Already started / not permitted yet — retry off the sync stack.
+        setTimeout(() => {
+          if (voiceMode && session.state === 'listening') {
+            try {
+              recognition.start();
+            } catch {
+              session.stopListening();
+            }
+          }
+        }, 250);
       }
     }
   };
