@@ -12,17 +12,16 @@ import {
  * but the brain is GLM via /chat/completions (function calling drives the
  * map) and the voice is edge-tts. No OpenAI anywhere.
  *
- * Interaction: click toggles a listen loop. Each recognized sentence is sent,
- * executed (map actions run for real), and the spoken confirmation plays;
- * afterwards the mic re-arms automatically until toggled off. During
- * thinking/speaking the mic is paused so the TTS output never feeds back in.
+ * Interaction: click once to record, click again to submit what was heard.
+ * The mic is paused while the pipeline thinks/speaks so the spoken reply is
+ * never fed back into recognition.
  */
 
 /** Map a session event to the dock's dataset.status / label / readout text. */
 export function mapEventToDock(event) {
   switch (event?.type) {
     case 'listening':
-      return { status: 'listening', label: 'LISTENING', detail: '聆聽中…說完自動執行' };
+      return { status: 'listening', label: 'LISTENING', detail: '聆聽中…再點一下送出' };
     case 'thinking':
       return { status: 'executing', label: 'EXECUTING', detail: '思考中…' };
     case 'tool':
@@ -57,10 +56,11 @@ export function mountVoiceDock({
   const ui = createVoiceControl();
   ui.tierButton.hidden = true; // no tiers on the free self-hosted stack
   ui.costValue.textContent = 'ZAI · FREE';
-  ui.helpDetail.textContent = '點擊切換聆聽 · 說完自動執行';
+  ui.helpDetail.textContent = '點一下開始錄音 · 再點一下送出';
 
-  let voiceMode = false;
   let recognition = null;
+  let recording = false;
+  let heard = ''; // best transcript so far for the current recording
 
   const Ctor = getRecognitionCtor();
   if (Ctor) {
@@ -88,21 +88,17 @@ export function mountVoiceDock({
       if (mapped) {
         ui.root.dataset.status = mapped.status;
         ui.status.textContent = mapped.label;
-        ui.detail.textContent = mapped.detail;
+        if (!(event.type === 'idle' && heard)) ui.detail.textContent = mapped.detail;
       }
       if (event.type === 'error') {
         ui.root.classList.remove('error-dismissed');
         if (ui.errorDetail) ui.errorDetail.textContent = event.message || '';
       }
-      // Continuous conversation: while the toggle is on, re-arm the mic as
-      // soon as the pipeline is idle again (thinking/speaking pause it so the
-      // spoken reply is never fed back into recognition). Off the sync stack —
-      // a start() failure must not recurse idle→restart synchronously.
-      if (event.type === 'idle' && voiceMode) setTimeout(restartListening, 120);
     },
   });
 
   const stopListening = () => {
+    recording = false;
     try {
       recognition?.stop();
     } catch {
@@ -110,78 +106,63 @@ export function mountVoiceDock({
     }
   };
 
-  const restartListening = () => {
-    if (!voiceMode || !recognition) return;
-    if (session.startListening()) {
-      try {
-        recognition.start();
-      } catch {
-        // Already started / not permitted yet — retry off the sync stack.
-        setTimeout(() => {
-          if (voiceMode && session.state === 'listening') {
-            try {
-              recognition.start();
-            } catch {
-              session.stopListening();
-            }
-          }
-        }, 250);
-      }
+  const startRecording = () => {
+    if (!session.startListening()) return;
+    recording = true;
+    heard = '';
+    try {
+      recognition?.start();
+    } catch {
+      recording = false;
+      session.stopListening();
     }
   };
 
-  const submitTranscript = (transcript) => {
-    if (!transcript || session.state !== 'idle') return;
-    // Pause the mic while the pipeline runs — the spoken reply must not be
-    // recognized as the next command.
+  const submitHeard = () => {
     stopListening();
-    session.ask(transcript);
+    const text = heard.trim();
+    heard = '';
+    if (!text) {
+      // Nothing recognized — settle back to idle with a hint.
+      session.stopListening();
+      ui.detail.textContent = '沒有聽到內容，再試一次。';
+      return;
+    }
+    ui.detail.textContent = `「${text}」`;
+    session.ask(text); // listening → thinking; mic already stopped
   };
 
   if (recognition) {
     recognition.onresult = (event) => {
-      let interim = '';
-      let final = '';
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const result = event.results[i];
-        if (result.isFinal) final += result[0].transcript;
-        else interim += result[0].transcript;
-      }
-      if (interim && session.state === 'listening') {
-        ui.detail.textContent = `「${interim}」…`;
-      }
-      if (final) submitTranscript(final.trim());
-    };
-    recognition.onerror = () => {
-      if (session.state === 'listening') session.stopListening();
-    };
-    recognition.onend = () => {
-      if (session.state === 'listening' && voiceMode) {
-        // Browser cut us off (silence/permission) — re-arm while toggled on.
-        try {
-          recognition.start();
-        } catch {
-          session.stopListening();
+        const transcript = result[0].transcript;
+        if (result.isFinal) heard = transcript.trim();
+        else if (!heard) heard = transcript; // interim — replaced by the final
+        if (session.state === 'listening') {
+          ui.detail.textContent = `「${heard || transcript}」…`;
         }
       }
+    };
+    recognition.onerror = () => {
+      if (recording) {
+        stopListening();
+        session.stopListening();
+        ui.detail.textContent = '麥克風不可用。';
+      }
+    };
+    recognition.onend = () => {
+      recording = false;
     };
   }
 
   ui.button.addEventListener('click', () => {
-    voiceMode = !voiceMode;
-    if (voiceMode) {
-      restartListening();
-      if (session.state !== 'listening') {
-        try {
-          recognition?.start();
-        } catch {
-          /* re-arm loop handles it */
-        }
-      }
-    } else {
-      stopListening();
-      session.cancel();
+    if (session.state === 'idle') {
+      startRecording();
+    } else if (session.state === 'listening') {
+      submitHeard();
     }
+    // thinking/speaking: busy — ignore extra clicks
   });
 
   return { session, ui };
