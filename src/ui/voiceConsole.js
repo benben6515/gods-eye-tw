@@ -128,7 +128,8 @@ export function mountVoiceConsole(
     apiBase,
     fetchImpl = (...args) => fetch(...args),
     document: documentImpl,
-    audioFactory = null, // (blob) => { play(): Promise, onended... } — null = no playback
+    // Real browsers speak; headless tests pass null to run text-only.
+    audioFactory = typeof Audio !== 'undefined' ? () => new Audio() : null,
     getRecognitionCtor = () =>
       globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition || null,
     objectUrl = (blob) => URL.createObjectURL(blob),
