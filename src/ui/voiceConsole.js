@@ -1,5 +1,7 @@
-import { extractChatReply, createVoiceSession } from './voiceSession.js';
+import { createVoiceSession } from './voiceSession.js';
 import { readStoredToken } from './siteGate.js';
+import { createActionTools } from '../voice/actionSchemas.js';
+import { ACTION_DESCRIPTIONS } from '../../server/providers/openai/toolDescriptions.js';
 
 /**
  * DOM adapter for the Chinese voice console (C2).
@@ -20,9 +22,12 @@ const DEFAULT_TTS_VOICE = 'zh-TW-HsiaoChenNeural';
 const DEV_CHAT_BEARER = 'gev-voice-console';
 const siteBearer = () => readStoredToken() || DEV_CHAT_BEARER;
 const CHAT_SYSTEM_PROMPT =
-  '你是「上帝之眼」台灣即時情資儀表板的語音助理。一律用繁體中文（台灣用語）回答，' +
-  '語氣精簡：一到三句、適合朗讀。主題圍繞地圖、天氣、交通、災防等即時情資；' +
-  '超出範圍的問題簡短引導回情資查詢。';
+  '你是「上帝之眼」台灣即時情資儀表板的語音助理，能透過工具直接控制地圖：' +
+  '飛往地點、調整視角、開關圖層、查看 CCTV 攝影機、追蹤飛機等。' +
+  '當使用者想移動地圖、查看資料或操作儀表板時，一律呼叫對應工具（不要用文字描述動作），' +
+  '工具執行完成後只回一句繁體中文短語確認（十五個字以內，例如「帶你去看台北 101」）。' +
+  '無法用工具完成的需求，用繁體中文簡短回答並引導回情資查詢。';
+const CHAT_TOOLS = createActionTools(ACTION_DESCRIPTIONS);
 
 /** True when the browser exposes a SpeechRecognition constructor. */
 export function voiceRecognitionSupported(scope = globalThis) {
@@ -105,11 +110,21 @@ async function chatViaFetch(fetchImpl, apiBase, messages) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${siteBearer()}`,
     },
-    body: JSON.stringify({ messages, stream: false }),
+    body: JSON.stringify({ messages, tools: CHAT_TOOLS, stream: false }),
   });
   if (!response.ok) throw new Error(`chat HTTP ${response.status}`);
   const data = await response.json().catch(() => null);
-  return extractChatReply(data);
+  if (!data) throw new Error('chat returned no JSON');
+  return data;
+}
+
+/** Execute one map action through the runner tools.js wired at boot. */
+async function executeMapAction(name, args) {
+  const runner = globalThis.__gevVoiceRunner;
+  if (typeof runner !== 'function') {
+    throw new Error('map runner unavailable');
+  }
+  return runner(name, args);
 }
 
 async function ttsViaFetch(fetchImpl, apiBase, text, voice = DEFAULT_TTS_VOICE) {
@@ -202,6 +217,7 @@ export function mountVoiceConsole(
 
   const session = createVoiceSession({
     chat: (messages) => chatViaFetch(fetchImpl, apiBase, messages),
+    executeAction: executeMapAction,
     speak: speakReply,
     notify: (event) => {
       if (event.type === 'listening') {
@@ -211,6 +227,8 @@ export function mountVoiceConsole(
         setStatus(`「${event.transcript}」…`);
         mic.setAttribute('aria-pressed', 'false');
         addBubble('user', event.transcript);
+      } else if (event.type === 'tool') {
+        setStatus(`🗺 ${event.name}…`);
       } else if (event.type === 'reply') {
         addBubble('reply', event.reply, {
           onClick: () => {

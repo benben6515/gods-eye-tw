@@ -3,6 +3,7 @@ import { initAnnotations } from '../annotations/index.js';
 import { initDrawTool } from '../annotations/drawTool.js';
 import { initImageryBoxTool } from '../ui/imageryBoxTool.js';
 import { createRecentImageryPanel } from '../ui/recentImagery.js';
+import { createGevActionRunner } from '../voice/gevActions.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
   installRenderGovernor,
@@ -156,10 +157,23 @@ export function createApplicationTools({
   defer(() => {
     if (window.__godsEyeView === debug) delete window.__godsEyeView;
   });
-  // fork: OpenAI Realtime voice is retired — the zh-TW console
-  // (src/ui/voiceConsole.js) owns voice now. The inert stub keeps the tools
-  // wiring and debug handle alive without the dock UI, Space push-to-talk,
-  // or /api/realtime/token calls.
+  // fork: the OpenAI Realtime dock session is retired — the zh-TW console
+  // (src/ui/voiceConsole.js) owns voice now. The action runner (the map's
+  // hands, from the original voice system) is still wired here and exposed
+  // for the console to execute GLM tool calls: fly, layers, CCTV, tracking.
+  const runGevAction = createGevActionRunner({
+    viewer,
+    styleManager,
+    dataManager,
+    sceneDirector,
+    annotations,
+    placeSearch,
+    floorServices: operations.surface.groundFloor,
+    annotationResolver: operations.annotationResolver,
+    searchNavigation: operations.searchAndFlyTo,
+    signal,
+  });
+  window.__gevVoiceRunner = runGevAction;
   const voiceCommands = { stop: () => {} };
   defer(() => {
     voiceCommands.stop({ removeUi: true });

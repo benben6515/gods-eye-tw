@@ -67,25 +67,91 @@ export function extractChatReply(data) {
     : null;
 }
 
+/** Extract assistant tool_calls (raw kept for the echo, args parsed for the executor). */
+export function extractToolCalls(data) {
+  const raw = data?.choices?.[0]?.message?.tool_calls;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const calls = raw.map((call) => {
+    let args = {};
+    try {
+      args = JSON.parse(call?.function?.arguments || '{}');
+    } catch {
+      args = {};
+    }
+    return {
+      raw: call,
+      id: typeof call?.id === 'string' ? call.id : null,
+      name: typeof call?.function?.name === 'string' ? call.function.name : null,
+      args,
+    };
+  });
+  return calls.every((call) => call.name) ? calls : null;
+}
+
+/** Tool loop ceiling — a voice command never needs more than this many rounds. */
+export const MAX_TOOL_ROUNDS = 3;
+
 /** Only the most recent turns are replayed — the console is a helper, not an archive. */
 export const VOICE_HISTORY_LIMIT = 6;
 
 /**
- * The ask→reply→speak loop with cancel-safe late events.
+ * The ask→(tool loop)→reply→speak flow with cancel-safe late events.
+ *
  * @param {object} ports
- * @param {(messages: Array) => Promise<string>} ports.chat transcript-in, reply-text-out (throws on failure)
+ * @param {(messages: Array) => Promise<object>} ports.chat messages-in, raw
+ *   completion data-out (throws on failure)
+ * @param {(name: string, args: object) => Promise<object>} ports.executeAction
+ *   map action executor (gevActions runner); throws are converted to failed
+ *   tool results, never fatal
  * @param {(text: string) => Promise<void>} ports.speak reply-text-out, resolves when playback ends (throws when TTS unavailable)
  * @param {(event: object) => void} ports.notify UI sink: {type, ...}
  */
-export function createVoiceSession({ chat, speak, notify }) {
+export function createVoiceSession({ chat, executeAction = null, speak, notify }) {
   const fsm = createVoiceStateMachine();
   const history = [];
+
+  /**
+   * Function-calling loop: chat → (tool_calls? execute → feed results → chat)*
+   * → text. Max MAX_TOOL_ROUNDS executor rounds; only the final text lands in
+   * history (intermediate tool rounds are not replayed).
+   */
+  async function converse(messages) {
+    for (let round = 0; ; round += 1) {
+      const data = await chat(messages);
+      const toolCalls = executeAction ? extractToolCalls(data) : null;
+      const reply = extractChatReply(data);
+      if (!toolCalls) return reply;
+      if (round >= MAX_TOOL_ROUNDS) {
+        return reply || '這個指令太複雜了，請拆成幾個步驟再試。';
+      }
+
+      messages.push({
+        role: 'assistant',
+        content: reply ?? '',
+        tool_calls: toolCalls.map((call) => call.raw),
+      });
+      for (const call of toolCalls) {
+        notify({ type: 'tool', name: call.name });
+        let payload;
+        try {
+          payload = await executeAction(call.name, call.args ?? {});
+        } catch (error) {
+          payload = { ok: false, error: error?.message || String(error) };
+        }
+        messages.push({
+          role: 'tool',
+          tool_call_id: call.id || `call_${round}_${toolCalls.indexOf(call)}`,
+          content: JSON.stringify(payload ?? { ok: true }).slice(0, 4000),
+        });
+      }
+    }
+  }
 
   async function ask(transcript) {
     if (!fsm.transition('thinking')) return; // e.g. cancel raced the submit
     notify({ type: 'thinking', transcript });
     try {
-      const reply = await chat(
+      const reply = await converse(
         assembleChatMessages(transcript, history.slice(-VOICE_HISTORY_LIMIT)),
       );
       if (!reply) throw new Error('empty reply');
