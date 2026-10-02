@@ -3,7 +3,6 @@ import { initAnnotations } from '../annotations/index.js';
 import { initDrawTool } from '../annotations/drawTool.js';
 import { initImageryBoxTool } from '../ui/imageryBoxTool.js';
 import { createRecentImageryPanel } from '../ui/recentImagery.js';
-import { initGevVoiceCommands } from '../voice/gevRealtime.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
   installRenderGovernor,
@@ -157,19 +156,11 @@ export function createApplicationTools({
   defer(() => {
     if (window.__godsEyeView === debug) delete window.__godsEyeView;
   });
-  const voiceCommands = initGevVoiceCommands({
-    ...voice,
-    floorServices: operations.surface.groundFloor,
-    annotationResolver: operations.annotationResolver,
-    searchNavigation: operations.searchAndFlyTo,
-    signal,
-    placeSearch,
-    viewer,
-    styleManager,
-    dataManager,
-    sceneDirector,
-    annotations,
-  });
+  // fork: OpenAI Realtime voice is retired — the zh-TW console
+  // (src/ui/voiceConsole.js) owns voice now. The inert stub keeps the tools
+  // wiring and debug handle alive without the dock UI, Space push-to-talk,
+  // or /api/realtime/token calls.
+  const voiceCommands = { stop: () => {} };
   defer(() => {
     voiceCommands.stop({ removeUi: true });
     if (window.__gevVoiceCommands === voiceCommands)
