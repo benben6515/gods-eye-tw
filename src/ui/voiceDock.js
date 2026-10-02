@@ -74,13 +74,60 @@ export function mountVoiceDock({
   let flushing = false;
 
   const Ctor = getRecognitionCtor();
-  if (Ctor) {
-    recognition = new Ctor();
-    recognition.lang = 'zh-TW';
-    recognition.interimResults = true;
-    recognition.continuous = false;
-    recognition.maxAlternatives = 1;
-  }
+
+  /**
+   * A FRESH recognition instance per recording. Reusing one instance across
+   * sessions breaks silently in Chrome once an <audio> playback happened in
+   * between (TTS reply) — start() succeeds but no events ever fire. Known
+   * bug class; the standard workaround is rebuild-per-session.
+   */
+  const buildRecognition = () => {
+    if (!Ctor) return null;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      try {
+        recognition.abort();
+      } catch {
+        /* already dead */
+      }
+    }
+    const rec = new Ctor();
+    rec.lang = voiceLangConfig().stt;
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = result[0].transcript;
+        if (result.isFinal) heard = transcript.trim();
+        else if (!heard) heard = transcript; // interim — replaced by the final
+        if (session.state === 'listening') {
+          ui.detail.textContent = `「${heard || transcript}」…`;
+        }
+      }
+    };
+    rec.onerror = (event) => {
+      if (recording) {
+        stopListening();
+        session.stopListening();
+        ui.detail.textContent =
+          event?.error === 'no-speech'
+            ? '沒聽到聲音，再試一次。'
+            : '麥克風不可用。';
+      }
+    };
+    rec.onend = () => {
+      recording = false;
+      const waiter = onEndWaiter;
+      onEndWaiter = null;
+      waiter?.();
+    };
+    recognition = rec;
+    return rec;
+  };
 
   const session = createVoiceSession({
     systemPrompt: () => voiceLangConfig().prompt,
@@ -116,9 +163,10 @@ export function mountVoiceDock({
     if (!session.startListening()) return;
     recording = true;
     heard = '';
-    if (recognition) recognition.lang = voiceLangConfig().stt; // 中/EN live switch
+    const rec = buildRecognition(); // fresh instance per session (Chrome bug)
+    if (rec) rec.lang = voiceLangConfig().stt; // 中/EN live switch
     try {
-      recognition?.start();
+      rec?.start();
     } catch {
       recording = false;
       session.stopListening();
@@ -156,36 +204,6 @@ export function mountVoiceDock({
       finish();
     }
   };
-
-  if (recognition) {
-    recognition.onresult = (event) => {
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const transcript = result[0].transcript;
-        if (result.isFinal) heard = transcript.trim();
-        else if (!heard) heard = transcript; // interim — replaced by the final
-        if (session.state === 'listening') {
-          ui.detail.textContent = `「${heard || transcript}」…`;
-        }
-      }
-    };
-    recognition.onerror = (event) => {
-      if (recording) {
-        stopListening();
-        session.stopListening();
-        ui.detail.textContent =
-          event?.error === 'no-speech'
-            ? '沒聽到聲音，再試一次。'
-            : '麥克風不可用。';
-      }
-    };
-    recognition.onend = () => {
-      recording = false;
-      const waiter = onEndWaiter;
-      onEndWaiter = null;
-      waiter?.();
-    };
-  }
 
   ui.button.addEventListener('click', () => {
     if (session.state === 'idle') {

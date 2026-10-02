@@ -119,12 +119,17 @@ function recognitionFake() {
 }
 
 function audioFake() {
-  return () => ({
-    src: '',
-    onended: null,
-    onerror: null,
-    play: () => new Promise((resolve) => setTimeout(resolve, 0)),
-  });
+  return () => {
+    const audio = { src: '', onended: null, onerror: null };
+    audio.play = () =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          audio.onended?.();
+          resolve();
+        }, 0);
+      });
+    return audio;
+  };
 }
 
 function fetchFake(calls) {
@@ -145,6 +150,17 @@ function fetchFake(calls) {
 
 const settle = async (turns = 3) => {
   for (let i = 0; i < turns; i += 1) await new Promise((r) => setImmediate(r));
+};
+
+/** Wait until the ask pipeline settles back to idle (generous cap). */
+const waitIdle = async (handle, turns = 400) => {
+  for (let i = 0; i < turns; i += 1) {
+    await new Promise((r) => setImmediate(r));
+    if (handle.session.state === 'idle') {
+      await settle(3); // let the trailing notifications flush
+      return;
+    }
+  }
 };
 
 function mount() {
@@ -190,7 +206,7 @@ test('text input drives the ask flow and clears itself', async () => {
 
   textInput.value = '帶我去看台北 101';
   textInput.dispatchEvent(enter);
-  await settle(6);
+  await waitIdle(handle);
 
   assert.equal(chatCalls(), 1, 'typed command asked exactly once');
   assert.equal(textInput.value, '', 'input cleared after send');
@@ -200,8 +216,36 @@ test('text input drives the ask flow and clears itself', async () => {
   textInput.value = '再加一句';
   button.click(); // start recording (listening)
   textInput.dispatchEvent(enter); // Enter while listening → cancels + asks
-  await settle(8);
+  await waitIdle(handle);
   assert.equal(chatCalls(), 2, 'listening state was cancelled and the text asked');
+});
+
+test('each recording gets a fresh recognition instance', async () => {
+  installDom();
+  const { handle, instances } = mount();
+  const { button } = handle.ui;
+
+  button.click(); // round 1
+  assert.equal(instances.length, 1);
+  instances[0].emitResult('帶我去 101', true);
+  button.click(); // submit → flush wait
+  instances[0].emitEnd(); // Chrome flushes, handshake completes, ask runs
+  await waitIdle(handle);
+  assert.equal(handle.session.history.length, 1, 'round 1 asked');
+
+  button.click(); // round 2 — must build a NEW instance
+  assert.equal(instances.length, 2, 'a fresh instance per recording');
+  assert.equal(instances[0].onresult, null, 'old instance handlers detached');
+
+  // A late event from the dead instance must not pollute the new session.
+  instances[0].emitResult('遲到的雜訊', true);
+  instances[1].emitResult('帶我去高雄', true);
+  button.click(); // submit round 2 → flush wait
+  instances[1].emitEnd();
+  await waitIdle(handle);
+
+  assert.equal(handle.session.history.length, 2);
+  assert.equal(handle.session.history[1].user, '帶我去高雄');
 });
 
 test('submit with nothing heard names the active voice language', async () => {
