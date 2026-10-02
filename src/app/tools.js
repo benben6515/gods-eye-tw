@@ -4,6 +4,8 @@ import { initDrawTool } from '../annotations/drawTool.js';
 import { initImageryBoxTool } from '../ui/imageryBoxTool.js';
 import { createRecentImageryPanel } from '../ui/recentImagery.js';
 import { createGevActionRunner } from '../voice/gevActions.js';
+import { mountVoiceDock } from '../ui/voiceDock.js';
+import { taiwanApiBase } from '../layers/taiwan/client.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
   installRenderGovernor,
@@ -157,10 +159,10 @@ export function createApplicationTools({
   defer(() => {
     if (window.__godsEyeView === debug) delete window.__godsEyeView;
   });
-  // fork: the OpenAI Realtime dock session is retired — the zh-TW console
-  // (src/ui/voiceConsole.js) owns voice now. The action runner (the map's
-  // hands, from the original voice system) is still wired here and exposed
-  // for the console to execute GLM tool calls: fly, layers, CCTV, tracking.
+  // fork: the OpenAI Realtime dock session is retired — the dock UI is now
+  // driven by the self-hosted stack (Web Speech zh-TW → GLM function calling
+  // → edge-tts). The runner stays wired here; window.__gevVoiceRunner backs
+  // the HUD chip console too.
   const runGevAction = createGevActionRunner({
     viewer,
     styleManager,
@@ -174,6 +176,9 @@ export function createApplicationTools({
     signal,
   });
   window.__gevVoiceRunner = runGevAction;
+  // The dock mic (original UI, self-hosted brain) — safe when the site gate
+  // already cleared: mount happens inside tools, i.e. post-gate boot.
+  mountVoiceDock({ runner: runGevAction, apiBase: taiwanApiBase() });
   const voiceCommands = { stop: () => {} };
   defer(() => {
     voiceCommands.stop({ removeUi: true });
