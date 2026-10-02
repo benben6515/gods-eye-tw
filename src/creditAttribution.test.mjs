@@ -545,7 +545,10 @@ test('a pinned tray still stacks above its sibling at narrow widths', () => {
   }
 });
 
-test('the full-width context rail clears the required credit at every modelled viewport', () => {
+test('the context rail has no floor anchor left to reason about at ≤720px', () => {
+  // ADR 0001: the Mobile Shell hides the rail outright (display:none) instead
+  // of parking it in a bottom-anchored half-screen stack. No bottom anchor —
+  // nothing to collide with the credit band.
   const anchors = [];
   for (const rule of RULES) {
     if (!rule.parts.includes('#right-context-rail')) continue;
@@ -553,33 +556,22 @@ test('the full-width context rail clears the required credit at every modelled v
       if (decl.prop === 'bottom') anchors.push({ rule, decl });
     }
   }
-  assert.equal(anchors.length, 1, 'the rail has exactly one bottom anchor to reason about');
-  assert.equal(parseMediaCondition(anchors[0].rule.media[0]), 720, 'the rail only goes full-width below 720px');
-
-  const failures = [];
-  for (const width of WIDTHS.filter((w) => w <= 720)) {
-    // `bottom` only governs the floor while the box is not height-capped:
-    // top + bottom + a resolved height is over-constrained and drops `bottom`.
-    assert.equal(
-      resolve(['#right-context-rail'], 'max-height', width, 'context rail').decl.value,
-      'none',
-      `at ${width}px the rail is height-capped, so its bottom anchor no longer decides its floor`,
-    );
-    for (const height of HEIGHTS) {
-      const rail = resolve(['#right-context-rail'], 'bottom', width, 'context rail');
-      const clearance = toPx(rail.decl.value, height, 'rail bottom') - creditTopPx(width, height);
-      if (clearance < MIN_CLEARANCE_PX) failures.push(`${width}x${height}: ${clearance.toFixed(1)}px`);
-    }
-  }
-  assert.deepEqual(failures, [], `context rail re-enters the credit band at ${failures.join(', ')}`);
+  assert.equal(anchors.length, 0, 'the rail regained a bottom anchor — model it');
+  const css = readStylesheet(path.join(ROOT, 'style.css'));
+  assert.match(
+    css,
+    /@media \(max-width: 720px\)\s*\{[\s\S]*?#left-panel-stack,\s*#right-context-rail,\s*#cctv-panel\s*\{[^}]*display:\s*none;/,
+    'the Mobile Shell must hide the rail at ≤720px',
+  );
 });
 
 test('the dock anchor changes at 720px — the 2vh cancellation is band-limited', () => {
   assert.equal(resolve(['#command-dock'], 'bottom', 800, 'dock').decl.value, '2vh');
+  // ADR 0001: the Mobile Shell's single-row sheet owns the ≤720px anchor.
   assert.equal(resolve(['#command-dock'], 'bottom', 720, 'dock').decl.value, '8px');
   assert.equal(
     resolve(CREDIT_SELECTORS, 'bottom', 720, 'credit').decl.value,
-    'calc(2vh + 5rem)',
+    'calc(2vh + 4.8rem)',
     'the credit keeps its 2vh base below 720px — that asymmetry is the whole hazard',
   );
 });

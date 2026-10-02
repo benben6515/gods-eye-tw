@@ -177,6 +177,7 @@ export function mountVoiceDock({
     if (flushing) return; // second click while waiting for the flush
     const finish = () => {
       flushing = false;
+      collapseDock();
       const text = heard.trim();
       heard = '';
       if (!text) {
@@ -222,12 +223,29 @@ export function mountVoiceDock({
     ui.detail.textContent = next === 'zh' ? '語音切換：中文' : 'Voice: English';
   });
 
+  // Mobile Shell: the collapsed dock row expands into the status sheet (see
+  // mobile-shell.css). A submitted command collapses it again — the map is
+  // the point.
+  const commandDock = documentImpl.getElementById('command-dock');
+  let dockExpanded = false;
+  const collapseDock = () => {
+    dockExpanded = false;
+    commandDock?.classList.remove('dock-expanded');
+    ui.expandButton?.setAttribute('aria-expanded', 'false');
+  };
+  ui.expandButton?.addEventListener('click', () => {
+    dockExpanded = !dockExpanded;
+    commandDock?.classList.toggle('dock-expanded', dockExpanded);
+    ui.expandButton.setAttribute('aria-expanded', String(dockExpanded));
+  });
+
   // Text fallback — types a command when the mic path is unavailable.
   const askText = () => {
     const text = ui.textInput.value.trim();
     if (!text) return;
     if (session.state === 'listening') session.stopListening();
     if (session.state !== 'idle') return; // thinking/speaking — busy
+    collapseDock();
     ui.textInput.value = '';
     ui.detail.textContent = `「${text}」`;
     session.ask(text); // idle → thinking

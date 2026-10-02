@@ -5,6 +5,7 @@ import { initImageryBoxTool } from '../ui/imageryBoxTool.js';
 import { createRecentImageryPanel } from '../ui/recentImagery.js';
 import { createGevActionRunner } from '../voice/gevActions.js';
 import { mountVoiceDock } from '../ui/voiceDock.js';
+import { installKeyboardOffset } from '../ui/keyboardOffset.js';
 import { taiwanApiBase } from '../layers/taiwan/client.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
@@ -179,6 +180,8 @@ export function createApplicationTools({
   // The dock mic (original UI, self-hosted brain) — safe when the site gate
   // already cleared: mount happens inside tools, i.e. post-gate boot.
   mountVoiceDock({ runner: runGevAction, apiBase: taiwanApiBase() });
+  // Mobile Shell: keep the dock above the on-screen keyboard (iOS WebKit).
+  installKeyboardOffset();
   const voiceCommands = { stop: () => {} };
   defer(() => {
     voiceCommands.stop({ removeUi: true });

@@ -287,23 +287,5 @@ body.recording-mode #cesium-credits {
   }
 }
 
-@media (max-width: 720px) {
-  #command-dock {
-    bottom: 8px;
-  }
-
-  #command-dock .location-search-wrap {
-    flex-basis: 150px;
-  }
-
-  #command-dock .panel-inner,
-  #command-dock .location-inner,
-  #command-dock #control-panel.collapsed .panel-inner,
-  #command-dock #location-bar.collapsed .location-inner {
-    padding: 7px 9px;
-  }
-
-  #left-panel-stack {
-    bottom: calc(50vh + 8px);
-  }
-}
+/* The ≤720px band is owned by mobile-shell.css (ADR 0001) — the retired
+   desktop-shrunk rules lived here and in responsive.css. */

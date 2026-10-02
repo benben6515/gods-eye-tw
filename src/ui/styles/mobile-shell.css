@@ -1,0 +1,320 @@
+/* ── Mobile Shell (≤720px) ─────────────────────
+   Map-first phone layout — see docs/adr/0001 and CONTEXT.md.
+
+   Rules here REPLACE the retired desktop-shrunk responsive pass. Every rule
+   that touches a geometry property modelled by creditAttribution.test.mjs
+   (bottom/transform on #command-dock / #cesium-credits) uses the exact
+   RECOGNIZED selector forms and resolvable px/rem/vh values — the model is
+   fail-closed by design. Keyboard offset is applied as an inline transform
+   by src/ui/keyboardOffset.js, deliberately outside this stylesheet.
+
+   Imported last in style.css: the shell wins cascade ties against every
+   desktop block, cyber theme included. */
+
+/* Mobile-only affordance: expands the collapsed dock row into the status
+   sheet. Never rendered on desktop. */
+.gev-voice-expand {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.gev-voice-expand .material-symbols-outlined {
+  font-size: 26px;
+  transition: rotate var(--transition-fast, 120ms) ease;
+}
+
+#command-dock.dock-expanded .gev-voice-expand .material-symbols-outlined {
+  rotate: 180deg;
+}
+
+@media (max-width: 720px) {
+  /* ── Dock: single collapsed bottom-sheet row ───────────────────────── */
+
+  #command-dock {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    display: grid;
+    grid-template-areas: 'voice';
+    grid-template-columns: minmax(0, 1fr);
+    width: auto;
+    max-width: none;
+    padding: 6px;
+    border-radius: 14px;
+    transform: none;
+  }
+
+  /* LOCATION and VISUAL PRESETS trays move to the Control Drawer (P2). */
+  #command-dock > #location-bar,
+  #command-dock > #control-panel {
+    display: none;
+  }
+
+  /* Keeps the modelled credit anchor honest at ≤720 (the fork hides the
+     credit, but the clearance model still reasons about where it WOULD be).
+     The minimal-HUD variant is more specific — it MUST track this anchor or
+     the browser paints a different bottom than the model reads. */
+  body:not(.ui-clean-view):not(.recording-mode) #cesium-credits {
+    bottom: calc(2vh + 4.8rem);
+  }
+
+  body:not(.ui-clean-view):not(.recording-mode):has(
+      #intel-hud[data-variant='minimal'].active
+    )
+    #cesium-credits {
+    bottom: calc(2vh + 4.8rem);
+  }
+
+  #command-dock > #gev-voice-control {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    gap: 0 8px;
+    align-items: center;
+    margin: 0;
+    padding: 6px 8px;
+    border-radius: 11px;
+  }
+
+  /* Row 1 — status sheet header: hidden collapsed, shown expanded or while
+     the pipeline is live (CSS-only auto-expand via :has). */
+  #command-dock .gev-voice-heading {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 4px;
+  }
+
+  #command-dock.dock-expanded .gev-voice-heading,
+  #command-dock:has(
+      #gev-voice-control[data-status]:not([data-status='idle'])
+    )
+    .gev-voice-heading {
+    display: flex;
+  }
+
+  /* The 中/EN switch lives in the heading; make it a real touch target. */
+  #command-dock .gev-voice-tier-btn {
+    min-width: 44px;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  #command-dock .gev-voice-kicker {
+    position: static;
+    overflow: visible;
+    font-size: 8px;
+    text-align: left;
+  }
+
+  /* Row 2 — [mic][input][expand] */
+  #command-dock #gev-voice-button {
+    grid-column: 1;
+    grid-row: 2;
+    width: 52px;
+    height: 44px;
+    flex: none;
+  }
+
+  #command-dock .gev-voice-readout {
+    display: contents;
+  }
+
+  /* 16px — the Input Zoom floor. iOS auto-zooms the page on focus below it. */
+  #command-dock #gev-voice-text-input {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid rgba(0, 212, 255, 0.18);
+    border-radius: 10px;
+    background: rgba(0, 212, 255, 0.05);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 16px;
+  }
+
+  #command-dock #gev-voice-text-input:focus {
+    outline: none;
+    border-color: rgba(0, 212, 255, 0.45);
+  }
+
+  #command-dock .gev-voice-expand {
+    grid-column: 3;
+    grid-row: 2;
+    display: flex;
+  }
+
+  /* Decorative bars and the desktop tooltip have no place in the sheet. */
+  #command-dock .gev-voice-visualizer,
+  #command-dock .gev-voice-help-tray {
+    display: none !important;
+  }
+
+  /* Row 3 — transcript/reply line, readable size. */
+  #command-dock #gev-voice-detail {
+    grid-column: 2 / 4;
+    grid-row: 3;
+    display: none;
+    max-width: none;
+    margin: 4px 2px 0;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-align: left;
+    white-space: normal;
+  }
+
+  #command-dock.dock-expanded #gev-voice-detail,
+  #command-dock:has(
+      #gev-voice-control[data-status]:not([data-status='idle'])
+    )
+    #gev-voice-detail {
+    display: block;
+  }
+
+  /* Voice error tray: full-width above the sheet. */
+  #command-dock .gev-voice-error-tray {
+    bottom: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+  }
+
+  /* ── Chrome: keep the map clear ────────────────────────────────────── */
+
+  /* Top-right camera actions (清圖層/分享/傾斜/北向/回地球) — demo
+     three-tap combo stays one tap away. 44px touch targets. */
+  #top-center-actions {
+    top: max(12px, env(safe-area-inset-top));
+    right: 12px;
+    left: auto;
+    transform: none;
+    gap: 6px;
+  }
+
+  #top-center-actions button {
+    width: 44px;
+    height: 44px;
+  }
+
+  #style-indicator {
+    display: none;
+  }
+
+  /* Compact brand mark: small logo, small wordmark, still the product. */
+  #title-bar {
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+  }
+
+  #title-bar h1 {
+    gap: 8px;
+    font-size: 16px;
+    letter-spacing: 4px;
+  }
+
+  #title-bar .title-logo {
+    width: 36px;
+  }
+
+  #title-bar .frame-rate-readout {
+    position: fixed;
+    top: 52px;
+    left: 12px;
+    margin: 0;
+    font-size: 10px;
+    line-height: 12px;
+  }
+
+  #title-bar:has(.frame-rate-readout:not([hidden])) .subtitle {
+    visibility: hidden;
+  }
+
+  /* Decorative HUD framing goes; the map is the decoration. */
+  .hud-top-left,
+  .hud-bottom-left {
+    left: 12px;
+  }
+
+  .hud-top-right,
+  .hud-bottom-right {
+    right: 12px;
+  }
+
+  .hud-left-edge,
+  .hud-right-edge {
+    display: none;
+  }
+
+  .hud-top-bar,
+  .hud-bottom-bar {
+    width: calc(100vw - 24px);
+    left: 12px;
+    transform: none;
+  }
+
+  .hud-top-bar {
+    top: 54px;
+    font-size: 9px;
+  }
+
+  #intel-hud[data-variant='operator'] .hud-top-bar {
+    left: 12px;
+    right: auto;
+    width: calc(100vw - 24px);
+    transform: none;
+  }
+
+  .hud-bottom-bar {
+    bottom: 96px;
+    font-size: 9px;
+  }
+
+  /* Panel stacks re-home into the Control Drawer (P2) — until then the map
+     runs alone. Voice/text commands still drive every layer. #cctv-panel is
+     listed explicitly: it commutes between the two stacks at runtime. */
+  #left-panel-stack,
+  #right-context-rail,
+  #cctv-panel {
+    display: none;
+  }
+
+  #scene-runtime {
+    top: max(14px, env(safe-area-inset-top));
+    max-width: calc(100vw - 24px);
+    text-align: center;
+  }
+
+  #toast {
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 520px) {
+  /* 16px keeps the wordmark on-screen beside the Radio broadcast waves. */
+  #title-bar {
+    top: 12px;
+    left: 12px;
+  }
+
+  #title-bar h1 > span:last-child,
+  #title-bar .subtitle {
+    display: none;
+  }
+}

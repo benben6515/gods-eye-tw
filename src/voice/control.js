@@ -30,6 +30,12 @@ export function createVoiceControl({ reset = false } = {}) {
         <div id="gev-voice-detail">VOICE STANDBY</div>
         <input id="gev-voice-text-input" type="text" placeholder="或直接輸入指令…" autocomplete="off" spellcheck="false" enterkeyhint="send" />
       </div>
+      <!-- Mobile Shell (≤720px) only: expands the collapsed dock row into the
+           status sheet. Hidden on desktop — the dock shows everything there. -->
+      <button id="gev-voice-expand" class="gev-voice-expand" type="button"
+        aria-expanded="false" aria-label="展開語音狀態">
+        <span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span>
+      </button>
       <div id="gev-voice-help" class="gev-voice-help-tray" role="tooltip">
         <span class="gev-voice-help-kicker">VOICE CONTROL</span>
         <span class="gev-voice-help-detail">Hold Space to speak · tap Space to activate focused controls</span>
@@ -66,6 +72,7 @@ export function createVoiceControl({ reset = false } = {}) {
     status: root.querySelector('#gev-voice-status'),
     detail: root.querySelector('#gev-voice-detail'),
     textInput: root.querySelector('#gev-voice-text-input'),
+    expandButton: root.querySelector('#gev-voice-expand'),
     helpDetail: root.querySelector('.gev-voice-help-detail'),
     errorDetail: root.querySelector('#gev-voice-error-detail'),
     tierButton: root.querySelector('#gev-voice-tier'),

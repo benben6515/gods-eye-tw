@@ -344,7 +344,12 @@ test('the Display selector, voice schema and final stylesheet expose Cyber', () 
   );
   assert.match(display, /id="cyber-sonar-sector"/);
   assert.deepEqual(setHud.parameters.properties.layout.enum, HUD_LAYOUTS);
-  assert.match(stylesheet, /@import '\.\/src\/ui\/styles\/cyber\.css';\s*$/);
+  // Cyber is the last THEME layer; only the Mobile Shell (layout owner per
+  // ADR 0001) may follow it — the shell wins cascade ties at ≤720px.
+  assert.match(
+    stylesheet,
+    /@import '\.\/src\/ui\/styles\/cyber\.css';\s*\n@import '\.\/src\/ui\/styles\/mobile-shell\.css';\s*$/,
+  );
   assert.match(cyberStyles, /:root\[data-ui-theme='cyber'\]/);
   assert.match(cyberStyles, /\.material-symbols-outlined/);
   assert.match(cyberStyles, /\.pp-label/);

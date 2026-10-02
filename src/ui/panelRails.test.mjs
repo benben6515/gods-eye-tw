@@ -542,14 +542,9 @@ for (const variant of ['minimal', 'full']) {
   });
 }
 // ── Narrow-screen rail overflow pin ──────────────────────────────────────────
-// At ≤720px both panel stacks become scroll containers (overflow-y: auto),
-// which also makes their overflow-x compute to auto. Each panel's decorative
-// .panel-glow is absolutely positioned with a negative inset, so inside a
-// scroll container that overhang is no longer harmless paint: it becomes
-// 18–20px of scrollable overflow on both axes, drawing a horizontal scrollbar
-// band under the expanded CCTV/Context/Data panel plus a vertical scrollbar
-// that scrolls nothing but glow. The narrow block therefore pins every hosted
-// glow to its panel box.
+// ADR 0001: at ≤720px the Mobile Shell owns the band. The rails are hidden,
+// not shrunk — the glow-overhang hazard below is what the old desktop-shrunk
+// scroll containers used to fight.
 
 /** Strip comments and return the bodies of every ≤720px media block. */
 function narrowScreenBlocks(css) {
@@ -588,7 +583,7 @@ function flatRules(block) {
   );
 }
 
-test('narrow-screen rails pin every hosted panel glow inside its panel box', () => {
+test('narrow-screen rails are gone: the Mobile Shell hides them, nothing scrolls', () => {
   const css = readStylesheet(new URL('../../style.css', import.meta.url));
   for (const panel of [
     'data-panel',
@@ -602,7 +597,23 @@ test('narrow-screen rails pin every hosted panel glow inside its panel box', () 
       `${panel} glow no longer overhangs its panel; revisit this pin`,
     );
   }
+  // ADR 0001: at ≤720px the Mobile Shell owns the band. The desktop-shrunk
+  // half-screen stacks are gone — both rails are display:none and neither is
+  // a scroll container, so no hosted glow can leak scrollable overflow. (The
+  // Control Drawer re-homes the panels in P2 and re-earns a scroll contract
+  // there.)
   const narrow = narrowScreenBlocks(css).flatMap(flatRules);
+  const hidden = new Set(
+    narrow
+      .filter(([, declarations]) => /(^|;)\s*display:\s*none/.test(declarations))
+      .flatMap(([selectors]) => selectors),
+  );
+  for (const rail of ['#left-panel-stack', '#right-context-rail']) {
+    assert.ok(
+      hidden.has(rail),
+      `${rail} is not hidden by the Mobile Shell at ≤720px`,
+    );
+  }
   const scrollingRails = [
     ...new Set(
       narrow
@@ -615,20 +626,7 @@ test('narrow-screen rails pin every hosted panel glow inside its panel box', () 
         ),
     ),
   ].sort();
-  assert.deepEqual(scrollingRails, [
-    '#left-panel-stack',
-    '#right-context-rail',
-  ]);
-  for (const rail of scrollingRails) {
-    assert.ok(
-      narrow.some(
-        ([selectors, declarations]) =>
-          selectors.includes(`${rail} .panel-glow`) &&
-          /(?:^|;)\s*inset:\s*0\s*;/.test(declarations),
-      ),
-      `${rail} scrolls at ≤720px but does not pin its panel glows (inset: 0)`,
-    );
-  }
+  assert.deepEqual(scrollingRails, []);
 });
 
 test('right layout ignores a hidden panel: no lane, no gap, no auto-collapse', () => {

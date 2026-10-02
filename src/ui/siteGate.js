@@ -69,8 +69,9 @@ function styleEl(doc) {
 .gev-gate-title { font-size: 15px; letter-spacing: 0.2em; color: #8dffb0; margin-bottom: 6px; }
 .gev-gate-sub { font-size: 11px; color: #5fae7c; margin-bottom: 18px; letter-spacing: 0.06em; }
 .gev-gate-input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(120,255,170,0.3); color: #eaf6ee; font: 13px ui-monospace, monospace;
-  padding: 9px 11px; border-radius: 5px; outline: none; }
+  border: 1px solid rgba(120,255,170,0.3); color: #eaf6ee; font: 16px ui-monospace, monospace;
+  padding: 10px 11px; border-radius: 5px; outline: none; }
+  /* 16px is deliberate: iOS auto-zooms the page on focus below it (Input Zoom). */
 .gev-gate-input:focus { border-color: #8dffb0; }
 .gev-gate-button { margin-top: 12px; width: 100%; cursor: pointer;
   background: rgba(120,255,170,0.14); border: 1px solid rgba(120,255,170,0.4);
