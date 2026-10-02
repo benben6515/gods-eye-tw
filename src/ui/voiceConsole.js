@@ -271,6 +271,7 @@ export function mountVoiceConsole(
     recognition = createRecognition(getRecognitionCtor, {
       onInterim: (text) => {
         if (text) setStatus(`● ${text}…`);
+        armSilenceWatchdog();
       },
       onFinal: (text) => submitTranscript(text),
       onError: () => session.cancel(),
@@ -280,11 +281,25 @@ export function mountVoiceConsole(
         if (session.state === 'listening') session.stopListening();
       },
     });
+    // Some browsers expose SpeechRecognition but never resolve results (no
+    // mic, denied permission, headless). A silent session auto-exits instead
+    // of blocking typed input forever.
+    let silenceTimer = null;
+    const armSilenceWatchdog = () => {
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (session.state === 'listening') {
+          stopRecognition();
+          session.stopListening();
+        }
+      }, 6000);
+    };
     if (recognition) {
       mic.addEventListener('click', () => {
         if (panel.hidden) return;
         if (session.state === 'idle') {
           if (session.startListening()) {
+            armSilenceWatchdog();
             try {
               recognition.start();
             } catch {
