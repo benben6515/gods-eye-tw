@@ -170,10 +170,30 @@ test('tool loop: executes tool_calls, feeds results back, speaks the final text'
   const executed = [];
   let round = 0;
   const session = createVoiceSession({
+    systemPrompt: '你是地圖助理',
     chat: async (messages) => {
       seenMessages.push(messages);
       round += 1;
-      if (round === 1) return toolCallData('search_and_fly_to', { query: '台北101' });
+      if (round === 1) {
+        // Upstream extras like `index` must be sanitized out of the echo.
+        return {
+          choices: [
+            {
+              message: {
+                content: '',
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    index: 0,
+                    type: 'function',
+                    function: { name: 'search_and_fly_to', arguments: '{"query":"台北101"}' },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      }
       return { choices: [{ message: { content: '帶你去看台北 101。' } }] };
     },
     executeAction: async (name, args) => {
@@ -187,10 +207,15 @@ test('tool loop: executes tool_calls, feeds results back, speaks the final text'
   await session.ask('帶我去看台北101');
   assert.equal(session.state, 'idle');
   assert.deepEqual(executed, [{ name: 'search_and_fly_to', args: { query: '台北101' } }]);
-  // Round 2 request carried the assistant echo + tool result.
+  // System prompt leads every round.
+  assert.equal(seenMessages[0][0].role, 'system');
+  assert.equal(seenMessages[0][0].content, '你是地圖助理');
+  // Round 2 request carried a SANITIZED assistant echo + tool result.
   const round2 = seenMessages[1];
-  assert.equal(round2.at(-2).role, 'assistant');
-  assert.equal(round2.at(-2).tool_calls[0].id, 'call_1');
+  const echo = round2.at(-2);
+  assert.equal(echo.role, 'assistant');
+  assert.deepEqual(Object.keys(echo.tool_calls[0]).sort(), ['function', 'id', 'type']);
+  assert.equal(echo.tool_calls[0].id, 'call_1');
   assert.equal(round2.at(-1).role, 'tool');
   assert.equal(round2.at(-1).tool_call_id, 'call_1');
   assert.match(round2.at(-1).content, /"ok":true/);

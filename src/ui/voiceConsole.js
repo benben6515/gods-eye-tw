@@ -225,6 +225,7 @@ export function mountVoiceConsole(
   let recognition = null;
 
   const session = createVoiceSession({
+    systemPrompt: CHAT_SYSTEM_PROMPT,
     chat: (messages) => chatViaFetch(fetchImpl, apiBase, messages),
     executeAction: executeMapAction,
     speak: speakReply,

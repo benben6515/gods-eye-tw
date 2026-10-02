@@ -106,7 +106,7 @@ export const VOICE_HISTORY_LIMIT = 6;
  * @param {(text: string) => Promise<void>} ports.speak reply-text-out, resolves when playback ends (throws when TTS unavailable)
  * @param {(event: object) => void} ports.notify UI sink: {type, ...}
  */
-export function createVoiceSession({ chat, executeAction = null, speak, notify }) {
+export function createVoiceSession({ chat, systemPrompt = '', executeAction = null, speak, notify }) {
   const fsm = createVoiceStateMachine();
   const history = [];
 
@@ -128,9 +128,15 @@ export function createVoiceSession({ chat, executeAction = null, speak, notify }
       messages.push({
         role: 'assistant',
         content: reply ?? '',
-        tool_calls: toolCalls.map((call) => call.raw),
+        // Echo only the canonical shape — the upstream attaches extras like
+        // `index`, and the backend whitelist rejects unknown properties.
+        tool_calls: toolCalls.map((call, index) => ({
+          id: call.id || `call_${round}_${index}`,
+          type: 'function',
+          function: { name: call.name, arguments: JSON.stringify(call.args ?? {}) },
+        })),
       });
-      for (const call of toolCalls) {
+      for (const [index, call] of toolCalls.entries()) {
         notify({ type: 'tool', name: call.name });
         let payload;
         try {
@@ -140,7 +146,7 @@ export function createVoiceSession({ chat, executeAction = null, speak, notify }
         }
         messages.push({
           role: 'tool',
-          tool_call_id: call.id || `call_${round}_${toolCalls.indexOf(call)}`,
+          tool_call_id: call.id || `call_${round}_${index}`,
           content: JSON.stringify(payload ?? { ok: true }).slice(0, 4000),
         });
       }
@@ -152,7 +158,7 @@ export function createVoiceSession({ chat, executeAction = null, speak, notify }
     notify({ type: 'thinking', transcript });
     try {
       const reply = await converse(
-        assembleChatMessages(transcript, history.slice(-VOICE_HISTORY_LIMIT)),
+        assembleChatMessages(transcript, history.slice(-VOICE_HISTORY_LIMIT), systemPrompt),
       );
       if (!reply) throw new Error('empty reply');
       history.push({ user: transcript, reply });
