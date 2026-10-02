@@ -320,7 +320,11 @@
 
   /* ── Player Sheet: the CCTV panel is a bottom sheet ────────────────── */
 
-  #cctv-panel {
+  /* The panel commutes between the stacks, whose two-ID rules (2,0,0)
+     outgun a bare #cctv-panel — :is() keeps the tie at (2,0,0) while this
+     file, imported last, wins it. */
+  #cctv-panel,
+  :is(#left-panel-stack, #right-context-rail) > #cctv-panel {
     position: fixed;
     top: auto;
     right: 0;
