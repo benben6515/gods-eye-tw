@@ -443,6 +443,13 @@
 }
 
 /* Keep the complete inline attribution row above the command dock. */
+/* fork: provider attribution hidden by owner request (personal deploy).
+   Heads-up: Cesium ion's free tier and Google's ToS normally require
+   visible attribution — revisit if the ion token or Maps key gets flagged. */
+#cesium-credits {
+  display: none !important;
+}
+
 body:not(.ui-clean-view):not(.recording-mode) #cesium-credits,
 body:not(.ui-clean-view):not(.recording-mode):has(
     #intel-hud[data-variant='minimal'].active
