@@ -6,6 +6,8 @@ import { createRecentImageryPanel } from '../ui/recentImagery.js';
 import { createGevActionRunner } from '../voice/gevActions.js';
 import { mountVoiceDock } from '../ui/voiceDock.js';
 import { installKeyboardOffset } from '../ui/keyboardOffset.js';
+import { installMobileDrawer } from '../ui/mobileDrawer.js';
+import { installPlayerSheet } from '../ui/playerSheet.js';
 import { taiwanApiBase } from '../layers/taiwan/client.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
@@ -182,6 +184,9 @@ export function createApplicationTools({
   mountVoiceDock({ runner: runGevAction, apiBase: taiwanApiBase() });
   // Mobile Shell: keep the dock above the on-screen keyboard (iOS WebKit).
   installKeyboardOffset();
+  // Mobile Shell P2: control drawer chrome + CCTV player-sheet gestures.
+  installMobileDrawer();
+  installPlayerSheet();
   const voiceCommands = { stop: () => {} };
   defer(() => {
     voiceCommands.stop({ removeUi: true });

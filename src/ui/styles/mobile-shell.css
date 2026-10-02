@@ -27,6 +27,12 @@
   cursor: pointer;
 }
 
+/* Control Drawer chrome (mobileDrawer.js) — desktop never renders these. */
+#mobile-drawer-toggle,
+#mobile-drawer-header {
+  display: none;
+}
+
 .gev-voice-expand .material-symbols-outlined {
   font-size: 26px;
   transition: rotate var(--transition-fast, 120ms) ease;
@@ -198,6 +204,197 @@
     max-width: none;
   }
 
+  /* ── Control Drawer ────────────────────────────────────────────────── */
+
+  #mobile-drawer-toggle {
+    position: fixed;
+    top: calc(max(12px, env(safe-area-inset-top)) + 44px);
+    left: 12px;
+    z-index: 141;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    color: var(--text-secondary);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    cursor: pointer;
+  }
+
+  #mobile-drawer-toggle .material-symbols-outlined {
+    font-size: 22px;
+  }
+
+  body.mobile-drawer-open #mobile-drawer-toggle {
+    display: none;
+  }
+
+  #mobile-drawer-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 160;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: max(12px, env(safe-area-inset-top)) 16px 10px;
+    background: rgba(5, 11, 17, 0.98);
+    border-bottom: 1px solid rgba(123, 189, 211, 0.22);
+  }
+
+  body.mobile-drawer-open #mobile-drawer-header {
+    display: flex;
+  }
+
+  .mobile-drawer-title {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+
+  .mobile-drawer-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(123, 189, 211, 0.28);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  /* The drawer: body itself becomes the scroll sheet. Both stacks are the
+     only in-flow children of body, so static positioning flows them into
+     one column — no DOM re-parenting (ADR 0001). */
+  body.mobile-drawer-open {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: rgba(5, 11, 17, 0.98);
+  }
+
+  body.mobile-drawer-open #left-panel-stack,
+  body.mobile-drawer-open #right-context-rail {
+    display: block;
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    padding: calc(max(12px, env(safe-area-inset-top)) + 58px) 12px calc(
+        96px + env(safe-area-inset-bottom, 0px)
+      );
+  }
+
+  body.mobile-drawer-open #left-panel-stack > *,
+  body.mobile-drawer-open #right-context-rail > * {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    margin: 0 0 10px;
+  }
+
+  /* Collapsed panels show as tap-to-expand headers in the drawer — the
+     exclusive desktop pass hides them; the drawer needs them reachable. */
+  body.mobile-drawer-open #right-context-rail > [data-panel-id].collapsed {
+    display: block;
+  }
+
+  /* ── Player Sheet: the CCTV panel is a bottom sheet ────────────────── */
+
+  #cctv-panel {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 147;
+    display: block;
+    width: auto;
+    max-width: none;
+    height: 62dvh;
+    margin: 0;
+    padding: 0 0 calc(10px + env(safe-area-inset-bottom, 0px));
+    border: 1px solid rgba(123, 189, 211, 0.3);
+    border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    background: rgba(7, 14, 21, 0.97);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transform: translateY(calc(100% + var(--player-drag, 0px)));
+    transition: transform 260ms ease;
+  }
+
+  #cctv-panel:not(.collapsed) {
+    transform: translateY(var(--player-drag, 0px));
+  }
+
+  #cctv-panel.player-dragging {
+    transition: none;
+  }
+
+  #cctv-panel.player-fullscreen {
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .cctv-sheet-handle {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 72px;
+    height: 28px;
+    padding: 0;
+    transform: translateX(-50%);
+    background: transparent;
+    border: 0;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .cctv-sheet-handle::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    width: 44px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(123, 189, 211, 0.55);
+    transform: translateX(-50%);
+  }
+
+  #cctv-frame-wrap {
+    height: 36dvh;
+    min-height: 0;
+  }
+
+  #cctv-frame {
+    height: 100%;
+    aspect-ratio: auto;
+    object-fit: contain;
+  }
+
+  /* ── Touch targets in the drawer ───────────────────────────────────── */
+
+  .panel-collapse-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .scene-btn {
+    min-height: 40px;
+  }
+
   /* ── Chrome: keep the map clear ────────────────────────────────────── */
 
   /* Top-right camera actions (清圖層/分享/傾斜/北向/回地球) — demo
@@ -288,12 +485,16 @@
     font-size: 9px;
   }
 
-  /* Panel stacks re-home into the Control Drawer (P2) — until then the map
+  /* Decorative recon framing is desktop chrome — the small map runs clean. */
+  #intel-hud {
+    display: none;
+  }
+
+  /* Panel stacks re-home into the Control Drawer — until opened, the map
      runs alone. Voice/text commands still drive every layer. #cctv-panel is
-     listed explicitly: it commutes between the two stacks at runtime. */
+     NOT hidden: it is the Player Sheet below. */
   #left-panel-stack,
-  #right-context-rail,
-  #cctv-panel {
+  #right-context-rail {
     display: none;
   }
 
