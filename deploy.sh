@@ -72,6 +72,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --allow-unauthenticated \
   --set-env-vars "HOST=0.0.0.0" \
   --set-env-vars "VITE_TAIWAN_API_BASE=${VITE_TAIWAN_API_BASE:-}" \
+  --set-env-vars "TAIWAN_API_BASE=${VITE_TAIWAN_API_BASE:-}" \
   ${SECRET_FLAGS:+--set-secrets "$SECRET_FLAGS"} \
   --memory 512Mi \
   --cpu 1 \

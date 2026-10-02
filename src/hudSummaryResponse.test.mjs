@@ -165,9 +165,12 @@ test('HUD summary instructions require non-nominal feedState in the five words',
   assert.match(HUD_SUMMARY_INSTRUCTIONS, /feedProvenance/);
 });
 
-test('the HUD proxy uses the shared provenance instructions', () => {
+test('the HUD proxy defers summarization to the backend /voice/summary route', () => {
   const local = readFileSync(new URL('../server/providers/openai/hud-summary.js', import.meta.url), 'utf8');
-  assert.match(local, /HUD_SUMMARY_INSTRUCTIONS/);
+  assert.match(local, /\/voice\/summary/);
+  // GLM instructions live server-side now; the middleware must not call
+  // OpenAI or embed its own prompt copy.
+  assert.doesNotMatch(local, /api\.openai\.com/);
   assert.doesNotMatch(local, /enabled-layer text labels/);
 });
 

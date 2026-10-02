@@ -1,4 +1,6 @@
 import { applicationServices } from './services/application.js';
+import { initVoiceConsole } from './ui/voiceConsole.js';
+import { taiwanApiBase } from './layers/taiwan/client.js';
 /**
  * @module hud
  * @description Intelligence HUD Overlay — NRO/NGA Satellite Aesthetic.
@@ -248,6 +250,14 @@ export class IntelHUD {
       </div>
     `;
     this._el.dataset.variant = this._variant;
+
+    // Voice console (zh-TW): mounts into the summary bar; idempotent and
+    // inert when the backend base is unset.
+    try {
+      initVoiceConsole({ apiBase: taiwanApiBase(), hudDocument: document });
+    } catch {
+      /* voice console is optional chrome — never break the HUD over it */
+    }
   }
 
   /**

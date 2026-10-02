@@ -1,22 +1,8 @@
 import {
-  HUD_SUMMARY_INSTRUCTIONS,
   keylessHudSummaryResponse,
 } from '../../../src/hudSummaryResponse.js';
 import { enforceOptInRateLimit, openAiRateLimiter } from './rate-limit.js';
 import { readRequestBody } from '../common/request.js';
-import { OPENAI_HUD_SUMMARY_MODEL_DEFAULT } from './constants.js';
-
-function extractOpenAiResponseText(data) {
-  if (typeof data?.output_text === 'string' && data.output_text.trim()) {
-    return data.output_text.trim();
-  }
-  if (!Array.isArray(data?.output)) return '';
-  return data.output
-    .flatMap((item) => (Array.isArray(item?.content) ? item.content : []))
-    .map((part) => part?.text || part?.output_text || '')
-    .join(' ')
-    .trim();
-}
 
 function toFiveWordHudSummary(value) {
   return String(value || '')
@@ -28,6 +14,17 @@ function toFiveWordHudSummary(value) {
     .join(' ');
 }
 
+// Runtime (not build-time) base of the personal API backend. The HUD summary
+// used to call the OpenAI upstream directly, which needed an OPENAI_API_KEY
+// and was the source of endless 429 noise; the backend now brokers GLM
+// quota-free. Read LAZILY per request, never at module load: .env values are
+// applied to process.env after this module is imported (see rate-limit.js).
+function hudBackendBase() {
+  return String(process.env.TAIWAN_API_BASE || '')
+    .trim()
+    .replace(/\/+$/, '');
+}
+
 async function handleHudSummary(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
@@ -36,9 +33,11 @@ async function handleHudSummary(req, res) {
     return;
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  const keyless = keylessHudSummaryResponse(apiKey);
-  if (keyless) {
+  // No backend configured → deliberate capability response; the HUD keeps its
+  // deterministic local summary line. (Shape identical to the old keyless path.)
+  const backendBase = hudBackendBase();
+  if (!backendBase) {
+    const keyless = keylessHudSummaryResponse(null);
     res.statusCode = keyless.statusCode;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
@@ -46,43 +45,35 @@ async function handleHudSummary(req, res) {
     return;
   }
 
-  // Opt-in per-IP throttle (GEV_RATELIMIT_OPENAI_PER_MIN). Keyless HUD
-  // fallback has no provider cost and resolves above without consuming a
-  // paid-endpoint quota slot.
+  // Opt-in per-IP throttle (GEV_RATELIMIT_OPENAI_PER_MIN). The backend has its
+  // own cache + sliding window; this remains a second door in front of it.
   if (!enforceOptInRateLimit(openAiRateLimiter(), req, res)) return;
 
   try {
     const body = await readRequestBody(req, 64 * 1024);
     const context = JSON.parse(body || '{}');
-    const response = await fetch('https://api.openai.com/v1/responses', {
+    const upstream = await fetch(`${backendBase}/voice/summary`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        // Structural bearer — the backend gates ambient HUD traffic with its
+        // own cache + rate limit, not the per-user chat quota.
+        Authorization: 'Bearer gev-hud-summary',
       },
-      body: JSON.stringify({
-        model:
-          process.env.OPENAI_HUD_SUMMARY_MODEL ||
-          OPENAI_HUD_SUMMARY_MODEL_DEFAULT,
-        instructions: HUD_SUMMARY_INSTRUCTIONS,
-        input: JSON.stringify(context),
-        reasoning: { effort: 'minimal' },
-        max_output_tokens: 100,
-      }),
+      body: JSON.stringify({ context: JSON.stringify(context) }),
+      signal: AbortSignal.timeout(30_000),
     });
-    const data = await response.json().catch(() => ({}));
-    const summary = toFiveWordHudSummary(extractOpenAiResponseText(data));
-    res.statusCode = response.ok && summary ? 200 : response.status || 502;
+    const data = await upstream.json().catch(() => ({}));
+    const summary = upstream.ok ? toFiveWordHudSummary(data?.summary) : '';
+    res.statusCode = upstream.ok && summary ? 200 : upstream.status || 502;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store');
-    if (!response.ok)
-      console.warn(`[hud-summary] upstream HTTP ${response.status}`);
+    if (!upstream.ok)
+      console.warn(`[hud-summary] backend HTTP ${upstream.status}`);
     res.end(
       JSON.stringify({
         summary: summary || null,
-        // Never relay `data.error.message`: that is OpenAI's own wording, and
-        // it carries request ids, organization hints and quota phrasing.
-        error: response.ok ? null : 'OpenAI HUD summary request failed',
+        error: upstream.ok ? null : 'HUD summary request failed',
       }),
     );
   } catch {
@@ -91,7 +82,7 @@ async function handleHudSummary(req, res) {
     res.setHeader('Content-Type', 'application/json');
     res.end(
       JSON.stringify({
-        error: 'OpenAI HUD summary request failed',
+        error: 'HUD summary request failed',
       }),
     );
   }
