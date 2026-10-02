@@ -4,7 +4,7 @@
  *
  * Everything here is DOM-free and transport-free — callers inject `chat`
  * (transcript → reply text), `speak` (reply text → playback promise) and
- * `notify` (UI event sink). The DOM adapter lives in voiceConsole.js; the
+ * `notify` (UI event sink). The DOM adapter lives in voiceDock.js; the
  * split mirrors controls/presentation elsewhere in this codebase and keeps
  * the flow unit-testable without a browser.
  */
