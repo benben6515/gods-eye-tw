@@ -56,6 +56,11 @@ test('≤720px the dock collapses to a single voice row', () => {
 test('the mobile mic and input are real touch targets', () => {
   assert.match(
     shell,
+    /#command-dock > #gev-voice-control\s*\{[^}]*width:\s*auto;/,
+    'the voice cell must stretch: elsewhere the dock widths it via var(--dock-voice-width)',
+  );
+  assert.match(
+    shell,
     /#command-dock #gev-voice-button\s*\{[^}]*height:\s*44px;/,
     'the mic button must be ≥44px tall',
   );

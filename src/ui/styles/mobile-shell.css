@@ -80,6 +80,9 @@
     grid-template-rows: auto auto auto;
     gap: 0 8px;
     align-items: center;
+    /* The dock cell widths its item via var(--dock-voice-width) elsewhere —
+       the sheet row stretches instead. */
+    width: auto;
     margin: 0;
     padding: 6px 8px;
     border-radius: 11px;
