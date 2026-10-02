@@ -42,8 +42,8 @@ export function mapEventToDock(event) {
 
 /**
  * Mount the dock voice. Safe to call once per boot (tools.js). Returns the
- * session, or null when SpeechRecognition is unavailable — then the HUD chip
- * console (text input) remains the only entrypoint.
+ * session, or null when SpeechRecognition is unavailable — then the text
+ * input remains the only entrypoint.
  */
 export function mountVoiceDock({
   apiBase,
@@ -61,10 +61,17 @@ export function mountVoiceDock({
   ui.tierButton.title = 'Switch voice language';
   ui.costValue.textContent = 'ZAI · FREE';
   ui.helpDetail.textContent = '點一下開始錄音 · 再點一下送出';
+  const textPlaceholder = () =>
+    getVoiceLang() === 'zh' ? '或直接輸入指令…' : '…or type a command';
+  ui.textInput.placeholder = textPlaceholder();
 
   let recognition = null;
   let recording = false;
   let heard = ''; // best transcript so far for the current recording
+  // Submit waits for Chrome to flush the final transcript (it arrives just
+  // before onend, i.e. after stop()) — onEndWaiter bridges that handshake.
+  let onEndWaiter = null;
+  let flushing = false;
 
   const Ctor = getRecognitionCtor();
   if (Ctor) {
@@ -76,12 +83,7 @@ export function mountVoiceDock({
   }
 
   const session = createVoiceSession({
-    systemPrompt:
-      '你是「上帝之眼」台灣即時情資儀表板的語音助理，能透過工具直接控制地圖：' +
-      '飛往地點、調整視角、開關圖層、查看 CCTV 攝影機、追蹤飛機等。' +
-      '當使用者想移動地圖、查看資料或操作儀表板時，一律呼叫對應工具（不要用文字描述動作），' +
-      '工具執行完成後只回一句繁體中文短語確認（十五個字以內，例如「帶你去看台北 101」）。' +
-      '無法用工具完成的需求，用繁體中文簡短回答並引導回情資查詢。',
+    systemPrompt: () => voiceLangConfig().prompt,
     chat: createChatClient({ fetchImpl, apiBase }),
     executeAction: runner
       ? (name, args) => runner(name, args)
@@ -124,17 +126,35 @@ export function mountVoiceDock({
   };
 
   const submitHeard = () => {
-    stopListening();
-    const text = heard.trim();
-    heard = '';
-    if (!text) {
-      // Nothing recognized — settle back to idle with a hint.
-      session.stopListening();
-      ui.detail.textContent = '沒有聽到內容，再試一次。';
-      return;
+    if (flushing) return; // second click while waiting for the flush
+    const finish = () => {
+      flushing = false;
+      const text = heard.trim();
+      heard = '';
+      if (!text) {
+        // Nothing recognized — settle back to idle with a hint that names
+        // the active STT language (a zh speaker left in EN mode sees this).
+        session.stopListening();
+        ui.detail.textContent =
+          `沒有聽到內容（語音語言：${getVoiceLang() === 'zh' ? '中文' : 'English'}）。`;
+        return;
+      }
+      ui.detail.textContent = `「${text}」`;
+      session.ask(text); // listening → thinking; mic already stopped
+    };
+    if (recognition && recording) {
+      flushing = true;
+      stopListening(); // stop() → final result → onend (async)
+      onEndWaiter = finish;
+      setTimeout(() => {
+        if (onEndWaiter === finish) {
+          onEndWaiter = null;
+          finish();
+        }
+      }, 700);
+    } else {
+      finish();
     }
-    ui.detail.textContent = `「${text}」`;
-    session.ask(text); // listening → thinking; mic already stopped
   };
 
   if (recognition) {
@@ -149,15 +169,21 @@ export function mountVoiceDock({
         }
       }
     };
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       if (recording) {
         stopListening();
         session.stopListening();
-        ui.detail.textContent = '麥克風不可用。';
+        ui.detail.textContent =
+          event?.error === 'no-speech'
+            ? '沒聽到聲音，再試一次。'
+            : '麥克風不可用。';
       }
     };
     recognition.onend = () => {
       recording = false;
+      const waiter = onEndWaiter;
+      onEndWaiter = null;
+      waiter?.();
     };
   }
 
@@ -174,7 +200,22 @@ export function mountVoiceDock({
     const next = getVoiceLang() === 'zh' ? 'en' : 'zh';
     setVoiceLang(next);
     ui.tierButton.textContent = next === 'zh' ? 'EN' : '中文';
+    ui.textInput.placeholder = textPlaceholder();
     ui.detail.textContent = next === 'zh' ? '語音切換：中文' : 'Voice: English';
+  });
+
+  // Text fallback — types a command when the mic path is unavailable.
+  const askText = () => {
+    const text = ui.textInput.value.trim();
+    if (!text) return;
+    if (session.state === 'listening') session.stopListening();
+    if (session.state !== 'idle') return; // thinking/speaking — busy
+    ui.textInput.value = '';
+    ui.detail.textContent = `「${text}」`;
+    session.ask(text); // idle → thinking
+  };
+  ui.textInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') askText();
   });
 
   return { session, ui };

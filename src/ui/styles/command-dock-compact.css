@@ -224,17 +224,41 @@
   z-index: 3;
   display: grid;
   grid-template-columns: 3.2rem 1fr 3.6rem;
-  grid-template-rows: 0.8rem 2.55rem 0.8rem;
+  grid-template-rows: 0.8rem 2.55rem 0.8rem 0.85rem;
   flex: 0 0 var(--dock-voice-width);
   width: var(--dock-voice-width);
   min-width: 0;
-  height: 4.9rem;
+  height: 5.75rem;
   margin: -0.65rem 0;
   padding: 0.3rem 0.65rem;
   gap: 0 0.35rem;
   overflow: hidden;
   border-radius: var(--panel-radius);
   transform: none;
+}
+
+#command-dock #gev-voice-text-input {
+  grid-column: 2 / 4;
+  grid-row: 4;
+  width: 100%;
+  min-width: 0;
+  align-self: end;
+  padding: 0.12rem 0.3rem;
+  background: rgba(6, 16, 24, 0.72);
+  border: 1px solid rgba(0, 212, 255, 0.22);
+  border-radius: 0.22rem;
+  color: #cfeaf2;
+  font-size: 0.42rem;
+  letter-spacing: 0.02rem;
+}
+
+#command-dock #gev-voice-text-input::placeholder {
+  color: rgba(160, 200, 212, 0.4);
+}
+
+#command-dock #gev-voice-text-input:focus {
+  outline: none;
+  border-color: rgba(0, 212, 255, 0.55);
 }
 
 #command-dock .gev-voice-kicker {

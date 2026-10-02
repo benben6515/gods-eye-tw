@@ -28,6 +28,7 @@ export function createVoiceControl({ reset = false } = {}) {
       </div>
       <div class="gev-voice-readout">
         <div id="gev-voice-detail">VOICE STANDBY</div>
+        <input id="gev-voice-text-input" type="text" placeholder="或直接輸入指令…" autocomplete="off" spellcheck="false" enterkeyhint="send" />
       </div>
       <div id="gev-voice-help" class="gev-voice-help-tray" role="tooltip">
         <span class="gev-voice-help-kicker">VOICE CONTROL</span>
@@ -64,6 +65,7 @@ export function createVoiceControl({ reset = false } = {}) {
     buttonLabel: root.querySelector('.gev-mic-label'),
     status: root.querySelector('#gev-voice-status'),
     detail: root.querySelector('#gev-voice-detail'),
+    textInput: root.querySelector('#gev-voice-text-input'),
     helpDetail: root.querySelector('.gev-voice-help-detail'),
     errorDetail: root.querySelector('#gev-voice-error-detail'),
     tierButton: root.querySelector('#gev-voice-tier'),
