@@ -257,6 +257,14 @@ export function mountVoiceConsole(
       submitTranscript(value);
     }
   });
+  // Typing intent is explicit — leave voice mode when the field takes focus
+  // (a hung recognition in mic-less browsers would otherwise block typing).
+  input.addEventListener('focus', () => {
+    if (session.state === 'listening') {
+      stopRecognition();
+      session.stopListening();
+    }
+  });
 
   if (voiceRecognitionSupported({ SpeechRecognition: getRecognitionCtor() })) {
     recognition = createRecognition(getRecognitionCtor, {
