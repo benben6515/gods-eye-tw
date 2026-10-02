@@ -308,6 +308,16 @@
     display: block;
   }
 
+  /* Two-ID collapsed-width rules in layers.css outgun the generic drawer
+     width — answer at (2,2,0), later in the cascade. */
+  body.mobile-drawer-open #right-context-rail > #pp-toggles.collapsed,
+  body.mobile-drawer-open #right-context-rail #weather-panel.collapsed,
+  body.mobile-drawer-open #right-context-rail #recent-imagery-panel.collapsed,
+  body.mobile-drawer-open #right-context-rail #global-context-panel.collapsed {
+    width: 100%;
+    margin-left: 0;
+  }
+
   /* ── Player Sheet: the CCTV panel is a bottom sheet ────────────────── */
 
   #cctv-panel {
