@@ -56,9 +56,9 @@ async function handleHudSummary(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Structural bearer — the backend gates ambient HUD traffic with its
-        // own cache + rate limit, not the per-user chat quota.
-        Authorization: 'Bearer gev-hud-summary',
+        // Server-to-server shared secret — /voice/summary no longer accepts
+        // anonymous browser traffic (SiteGuard accepts this or a site JWT).
+        Authorization: `Bearer ${process.env.API_SHARED_SECRET || 'unconfigured'}`,
       },
       body: JSON.stringify({ context: JSON.stringify(context) }),
       signal: AbortSignal.timeout(30_000),

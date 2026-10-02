@@ -46,7 +46,7 @@ ensure_secret() {
 
 echo "🔐 Ensuring middleware secrets..."
 SECRET_FLAGS=""
-for entry in "aisstream-api-key:AISSTREAM_API_KEY" "firms-map-key:FIRMS_MAP_KEY" "tomtom-api-key:TOMTOM_API_KEY"; do
+for entry in "aisstream-api-key:AISSTREAM_API_KEY" "firms-map-key:FIRMS_MAP_KEY" "tomtom-api-key:TOMTOM_API_KEY" "api-shared-secret:API_SHARED_SECRET"; do
   secret_name="${entry%%:*}"; env_var="${entry##*:}"
   if ensure_secret "$secret_name" "$env_var"; then
     SECRET_FLAGS+="${env_var}=${secret_name}:latest,"

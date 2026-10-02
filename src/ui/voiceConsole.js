@@ -1,4 +1,5 @@
 import { extractChatReply, createVoiceSession } from './voiceSession.js';
+import { readStoredToken } from './siteGate.js';
 
 /**
  * DOM adapter for the Chinese voice console (C2).
@@ -14,9 +15,10 @@ import { extractChatReply, createVoiceSession } from './voiceSession.js';
 
 const VOICE_LANG = 'zh-TW';
 const DEFAULT_TTS_VOICE = 'zh-TW-HsiaoChenNeural';
-// Structural bearer only — the backend chat proxy accepts any opaque token
-// and gates abuse with a per-IP daily quota instead.
-const CHAT_BEARER = 'Bearer gev-voice-console';
+// Site JWT when unlocked; the plain bearer remains a dev fallback — the
+// backend gates chat abuse with per-IP quota, not this string.
+const DEV_CHAT_BEARER = 'gev-voice-console';
+const siteBearer = () => readStoredToken() || DEV_CHAT_BEARER;
 const CHAT_SYSTEM_PROMPT =
   '你是「上帝之眼」台灣即時情資儀表板的語音助理。一律用繁體中文（台灣用語）回答，' +
   '語氣精簡：一到三句、適合朗讀。主題圍繞地圖、天氣、交通、災防等即時情資；' +
@@ -99,7 +101,10 @@ export function createRecognition(getRecognitionCtor, handlers, lang = VOICE_LAN
 async function chatViaFetch(fetchImpl, apiBase, messages) {
   const response = await fetchImpl(`${apiBase}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: CHAT_BEARER },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${siteBearer()}`,
+    },
     body: JSON.stringify({ messages, stream: false }),
   });
   if (!response.ok) throw new Error(`chat HTTP ${response.status}`);
@@ -110,7 +115,10 @@ async function chatViaFetch(fetchImpl, apiBase, messages) {
 async function ttsViaFetch(fetchImpl, apiBase, text, voice = DEFAULT_TTS_VOICE) {
   const response = await fetchImpl(`${apiBase}/voice/tts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${siteBearer()}`,
+    },
     body: JSON.stringify({ text, voice }),
   });
   if (!response.ok) throw new Error(`tts HTTP ${response.status}`);

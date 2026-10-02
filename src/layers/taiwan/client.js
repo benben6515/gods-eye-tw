@@ -8,12 +8,12 @@
  * 未連線後端 state through their stats — and it fails fast while a backoff
  * window is open so periodic layer ticks cannot hammer an offline service.
  */
+import { siteAuthHeaders } from '../../ui/siteGate.js';
 
 const DEFAULT_BASE_URL = 'http://localhost:3000';
 const REQUEST_TIMEOUT_MS = 10_000;
 const BACKOFF_BASE_MS = 2_000;
 const BACKOFF_MAX_MS = 60_000;
-
 /** Read the configured backend origin without trusting its shape. */
 export function taiwanApiBase(env = import.meta.env) {
   const raw = String(env?.VITE_TAIWAN_API_BASE || '').trim();
@@ -112,6 +112,7 @@ export function createTaiwanApiClient({
       const response = await fetchImpl(`${base}${path}`, {
         cache: 'no-store',
         signal: deadline.signal,
+        headers: siteAuthHeaders(),
       });
       if (!response.ok)
         throw new Error(`Taiwan backend HTTP ${response.status}`);
