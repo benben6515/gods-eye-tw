@@ -27,7 +27,16 @@ const CHAT_SYSTEM_PROMPT =
   '當使用者想移動地圖、查看資料或操作儀表板時，一律呼叫對應工具（不要用文字描述動作），' +
   '工具執行完成後只回一句繁體中文短語確認（十五個字以內，例如「帶你去看台北 101」）。' +
   '無法用工具完成的需求，用繁體中文簡短回答並引導回情資查詢。';
-const CHAT_TOOLS = createActionTools(ACTION_DESCRIPTIONS);
+// Z.ai rejects the legacy flat tool shape (`tools[0].function can not be
+// null`) — convert {type,name,description,parameters} to nested.
+const CHAT_TOOLS = createActionTools(ACTION_DESCRIPTIONS).map((tool) => ({
+  type: 'function',
+  function: {
+    name: tool.name,
+    description: tool.description,
+    parameters: tool.parameters,
+  },
+}));
 
 /** True when the browser exposes a SpeechRecognition constructor. */
 export function voiceRecognitionSupported(scope = globalThis) {
