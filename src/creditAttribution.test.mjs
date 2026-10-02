@@ -206,6 +206,10 @@ const RECOGNIZED = new Set([
   '#right-context-rail',
   '#right-context-rail.layout-focus',
   '#right-context-rail[data-rail-measuring]',
+  // ADR 0001: the Control Drawer flows the rail into the body scroll sheet.
+  // static + max-height:none is what makes that legal — vetted by the
+  // drawer contract test (mobileDrawer.test.mjs).
+  'body.mobile-drawer-open #right-context-rail',
   // tray
   '#command-dock .dock-popover-content',
   '#command-dock #location-bar .dock-popover-content',
@@ -418,7 +422,10 @@ test('the model refuses every cascade construct it cannot resolve', () => {
         // modelled band by the rail clearance test) and `.layout-focus`
         // (proven inapplicable at <=720px by the mobile-mode test), plus
         // synchronous measurement, which is removed before any paint.
-        const railOwn = part === '#right-context-rail' && decl.prop === 'max-height';
+        const railOwn =
+          (part === '#right-context-rail' ||
+            part === 'body.mobile-drawer-open #right-context-rail') &&
+          decl.prop === 'max-height';
         const railFocus = part === '#right-context-rail.layout-focus';
         if (!railOwn && !railFocus && !railMeasurement) complaints.push(`${decl.prop}: ${decl.value} on "${part}"`);
       }
@@ -560,7 +567,7 @@ test('the context rail has no floor anchor left to reason about at ≤720px', ()
   const css = readStylesheet(path.join(ROOT, 'style.css'));
   assert.match(
     css,
-    /@media \(max-width: 720px\)\s*\{[\s\S]*?#left-panel-stack,\s*#right-context-rail,\s*#cctv-panel\s*\{[^}]*display:\s*none;/,
+    /@media \(max-width: 720px\)\s*\{[\s\S]*?#left-panel-stack,\s*#right-context-rail\s*\{[^}]*display:\s*none;/,
     'the Mobile Shell must hide the rail at ≤720px',
   );
 });
