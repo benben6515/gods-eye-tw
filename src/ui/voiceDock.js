@@ -33,7 +33,14 @@ export function mapEventToDock(event) {
     case 'speak-failed':
       return { status: 'idle', label: 'OFF', detail: t('speakUnavailable') };
     case 'error':
-      return { status: 'error', label: 'ERROR', detail: event.message || t('voiceError') };
+      return {
+        status: 'error',
+        label: 'ERROR',
+        detail:
+          event.message === 'CHAT_QUOTA'
+            ? t('quotaExhausted')
+            : event.message || t('voiceError'),
+      };
     case 'idle':
       return { status: 'idle', label: 'OFF', detail: 'VOICE STANDBY' };
     default:

@@ -25,7 +25,12 @@ async function chatViaFetch(fetchImpl, apiBase, messages) {
     },
     body: JSON.stringify({ messages, tools: CHAT_TOOLS, stream: false }),
   });
-  if (!response.ok) throw new Error(`chat HTTP ${response.status}`);
+  if (!response.ok) {
+    // The quota 429 carries a machine-readable code — surface it verbatim so
+    // the dock can translate; every other failure keeps the terse status.
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.code === 'CHAT_QUOTA' ? 'CHAT_QUOTA' : `chat HTTP ${response.status}`);
+  }
   const data = await response.json().catch(() => null);
   if (!data) throw new Error('chat returned no JSON');
   return data;

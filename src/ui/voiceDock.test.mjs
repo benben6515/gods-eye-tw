@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mountVoiceDock } from './voiceDock.js';
+import { mapEventToDock, mountVoiceDock } from './voiceDock.js';
+import { setVoiceLang } from './voiceLang.js';
 
 /**
  * Minimal DOM stub for the dock: createVoiceControl builds its UI from one
@@ -316,6 +317,27 @@ test('the 中/EN switch flips UI strings, chips, and fires gev-lang-change', () 
   assert.equal(detail.textContent, '語言切換：中文');
   assert.equal(tierButton.textContent, 'EN');
   assert.equal(fired.length, 2);
+});
+
+test('the quota 429 reads as a human sentence, not a status code', () => {
+  assert.equal(
+    mapEventToDock({ type: 'error', message: 'CHAT_QUOTA' }).detail,
+    '今日語音額度用完，UTC 午夜後重置。',
+  );
+  setVoiceLang('en');
+  try {
+    assert.equal(
+      mapEventToDock({ type: 'error', message: 'CHAT_QUOTA' }).detail,
+      'Daily voice quota used up — resets after UTC midnight.',
+    );
+  } finally {
+    setVoiceLang('zh'); // balanced — later tests expect the zh default
+  }
+  assert.equal(
+    mapEventToDock({ type: 'error', message: 'chat HTTP 503' }).detail,
+    'chat HTTP 503',
+    'other failures keep their raw message',
+  );
 });
 
 test('submit with nothing heard names the active voice language', async () => {

@@ -29,6 +29,7 @@ const STRINGS = {
     noSpeech: '沒聽到聲音，再試一次。',
     micUnavailable: '麥克風不可用。',
     nothingHeard: '沒有聽到內容（語音語言：中文）。',
+    quotaExhausted: '今日語音額度用完，UTC 午夜後重置。',
     // Player sheet
     sheetHandle: '拖動：下滑關閉，點一下全螢幕',
     // Session fallback
@@ -60,6 +61,7 @@ const STRINGS = {
     noSpeech: 'No speech detected — try again.',
     micUnavailable: 'Microphone unavailable.',
     nothingHeard: 'Nothing heard (voice language: English).',
+    quotaExhausted: 'Daily voice quota used up — resets after UTC midnight.',
     // Player sheet
     sheetHandle: 'Drag down to dismiss · tap for fullscreen',
     // Session fallback
