@@ -30,6 +30,8 @@ export function createVoiceControl({ reset = false } = {}) {
         <div id="gev-voice-detail">VOICE STANDBY</div>
         <input id="gev-voice-text-input" type="text" placeholder="或直接輸入指令…" autocomplete="off" spellcheck="false" enterkeyhint="send" />
       </div>
+      <!-- Mobile Shell: Quick Places (P3) — populated by voiceDock.js. -->
+      <div id="gev-quick-places" class="gev-quick-places" role="group" aria-label="快捷地點"></div>
       <!-- Mobile Shell (≤720px) only: expands the collapsed dock row into the
            status sheet. Hidden on desktop — the dock shows everything there. -->
       <button id="gev-voice-expand" class="gev-voice-expand" type="button"

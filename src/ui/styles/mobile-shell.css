@@ -29,7 +29,8 @@
 
 /* Control Drawer chrome (mobileDrawer.js) — desktop never renders these. */
 #mobile-drawer-toggle,
-#mobile-drawer-header {
+#mobile-drawer-header,
+.gev-quick-places {
   display: none;
 }
 
@@ -397,6 +398,49 @@
     object-fit: contain;
   }
 
+  /* Row 4 — Quick Places: horizontal strip, shown with the expanded sheet. */
+  #command-dock .gev-quick-places {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    display: none;
+    gap: 8px;
+    margin-top: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  #command-dock.dock-expanded .gev-quick-places {
+    display: flex;
+  }
+
+  #command-dock .gev-quick-place {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+    min-height: 44px;
+    padding: 6px 12px;
+    border: 1px solid rgba(0, 212, 255, 0.22);
+    border-radius: 10px;
+    background: rgba(0, 212, 255, 0.05);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  #command-dock .gev-qp-code {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+  }
+
+  #command-dock .gev-qp-zh {
+    font-size: 13px;
+  }
+
   /* ── Touch targets in the drawer ───────────────────────────────────── */
 
   .panel-collapse-btn {
@@ -407,6 +451,27 @@
 
   .scene-btn {
     min-height: 40px;
+  }
+
+  #cctv-camera-select {
+    min-height: 40px;
+  }
+
+  .gev-voice-error-dismiss {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Chromeless scrolling: the glass sheets scroll, the chrome doesn't. */
+  #cctv-panel,
+  body.mobile-drawer-open {
+    scrollbar-width: none;
+  }
+
+  #cctv-panel::-webkit-scrollbar,
+  body.mobile-drawer-open::-webkit-scrollbar {
+    width: 0;
+    height: 0;
   }
 
   /* ── Chrome: keep the map clear ────────────────────────────────────── */

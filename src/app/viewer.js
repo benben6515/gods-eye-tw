@@ -106,6 +106,12 @@ export function installTrackpadPinchZoom(
 export function createApplicationViewer({ container, creditContainer }) {
   if (!container || !creditContainer)
     throw new TypeError('Viewer and credit containers are required');
+  // Mobile Shell quality tier (Q15a): smoothness first — MSAA is the single
+  // largest per-frame cost on mobile GPUs, and a 0.85 resolution scale is
+  // invisible on a phone-sized viewport. Read once at boot: a phone does not
+  // cross the 720px breakpoint mid-session.
+  const mobileQuality =
+    typeof matchMedia === 'function' && matchMedia('(max-width: 720px)').matches;
   const viewer = new Cesium.Viewer(container, {
     timeline: false,
     animation: false,
@@ -120,11 +126,12 @@ export function createApplicationViewer({ container, creditContainer }) {
     infoBox: false,
     baseLayer: false,
     creditContainer,
-    msaaSamples: 4,
+    msaaSamples: mobileQuality ? 1 : 4,
     contextOptions: { webgl: { preserveDrawingBuffer: true } },
   });
   try {
     viewer.targetFrameRate = 60;
+    if (mobileQuality) viewer.scene.resolutionScale = 0.85;
     // Debug/testing handle: lets tooling and QA scripts reach the viewer
     // (fly-to, pick entities) without touching module internals.
     if (typeof window !== 'undefined') window.__gevViewer = viewer;

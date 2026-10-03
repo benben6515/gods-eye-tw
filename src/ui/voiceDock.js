@@ -239,6 +239,40 @@ export function mountVoiceDock({
     ui.expandButton.setAttribute('aria-expanded', String(dockExpanded));
   });
 
+  // Quick Places (Mobile Shell P3): preset fly-to chips. They fly through
+  // the same gevActions runner the voice tools use — no GLM round trip, the
+  // camera just goes. Present only when a runner exists.
+  const QUICK_PLACES = [
+    { code: 'TPE 101', zh: '台北 101', latitude: 25.033, longitude: 121.5654, rangeM: 1200 },
+    { code: 'KHH PORT', zh: '高雄港', latitude: 22.605, longitude: 120.29, rangeM: 3500 },
+    { code: 'MZG', zh: '澎湖', latitude: 23.571, longitude: 119.57, rangeM: 30000 },
+    { code: 'SML', zh: '日月潭', latitude: 23.865, longitude: 120.928, rangeM: 5000 },
+    { code: 'CCK', zh: '清泉崗', latitude: 24.264, longitude: 120.621, rangeM: 4000 },
+    { code: 'KTNT', zh: '墾丁', latitude: 21.95, longitude: 120.79, rangeM: 12000 },
+  ];
+  const flyToQuickPlace = runner
+    ? (name, args) => runner(name, args)
+    : (name, args) => executeMapAction(name, args);
+  const quickPlaces = ui.root.querySelector('#gev-quick-places');
+  for (const place of runner ? QUICK_PLACES : []) {
+    const chip = documentImpl.createElement('button');
+    chip.type = 'button';
+    chip.className = 'gev-quick-place';
+    chip.innerHTML = `<span class="gev-qp-code">${place.code}</span><span class="gev-qp-zh">${place.zh}</span>`;
+    chip.addEventListener('click', () => {
+      ui.detail.textContent = `飛往 ${place.zh}…`;
+      collapseDock();
+      Promise.resolve(
+        flyToQuickPlace('fly_to_location', {
+          latitude: place.latitude,
+          longitude: place.longitude,
+          rangeM: place.rangeM,
+        }),
+      ).catch(() => {});
+    });
+    quickPlaces?.appendChild(chip);
+  }
+
   // Text fallback — types a command when the mic path is unavailable.
   const askText = () => {
     const text = ui.textInput.value.trim();

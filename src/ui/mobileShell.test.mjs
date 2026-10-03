@@ -87,6 +87,24 @@ test('the expand affordance is mobile-only', () => {
   );
 });
 
+test('Quick Places are mobile-only, expanded-only, and fly through the runner', () => {
+  assert.match(
+    shell,
+    /#mobile-drawer-toggle,\s*#mobile-drawer-header,\s*\.gev-quick-places\s*\{[^}]*display:\s*none;/,
+    'desktop must not render quick places',
+  );
+  assert.match(
+    shell,
+    /#command-dock\.dock-expanded \.gev-quick-places\s*\{[^}]*display:\s*flex;/,
+    'chips live in the expanded sheet',
+  );
+  assert.match(
+    shell,
+    /#command-dock \.gev-quick-place\s*\{[^}]*min-height:\s*44px;/,
+    'chips are touch targets',
+  );
+});
+
 test('the dock expand wiring exists end to end', () => {
   const control = read('../../src/voice/control.js');
   assert.match(control, /id="gev-voice-expand"/, 'the button must exist');
@@ -163,4 +181,17 @@ test('the site-gate password input keeps the 16px Input Zoom floor', () => {
     /\.gev-gate-input\s*\{[^}]*font:\s*16px /,
     'a 13px gate input auto-zooms the whole page on focus',
   );
+});
+
+// ── Cesium quality tier ──────────────────────────────────────────────────────
+
+test('the viewer boots into the mobile quality tier at ≤720px', () => {
+  const viewer = read('../app/viewer.js');
+  assert.match(
+    viewer,
+    /matchMedia\('\(max-width: 720px\)'\)/,
+    'the quality tier keys off the same breakpoint as the shell',
+  );
+  assert.match(viewer, /msaaSamples:\s*mobileQuality \? 1 : 4/);
+  assert.match(viewer, /resolutionScale = 0\.85/);
 });

@@ -163,7 +163,7 @@ const waitIdle = async (handle, turns = 400) => {
   }
 };
 
-function mount() {
+function mount(overrides = {}) {
   const { Ctor, instances } = recognitionFake();
   const calls = [];
   const handle = mountVoiceDock({
@@ -171,6 +171,7 @@ function mount() {
     fetchImpl: fetchFake(calls),
     audioFactory: audioFake(),
     getRecognitionCtor: () => Ctor,
+    ...overrides,
   });
   return { handle, instances, calls };
 }
@@ -246,6 +247,43 @@ test('each recording gets a fresh recognition instance', async () => {
 
   assert.equal(handle.session.history.length, 2);
   assert.equal(handle.session.history[1].user, '帶我去高雄');
+});
+
+test('quick places fly through the runner without a chat round trip', async () => {
+  installDom();
+  const runnerCalls = [];
+  const { handle } = mount({
+    runner: (name, args) => {
+      runnerCalls.push([name, args]);
+      return Promise.resolve({ ok: true });
+    },
+  });
+  const row = handle.ui.root.querySelector('#gev-quick-places');
+  assert.ok(row, 'the quick places row must exist');
+  assert.equal(row.children.length, 6, 'six preset chips');
+
+  row.children[0].dispatchEvent(new Event('click'));
+  assert.deepEqual(runnerCalls[0], [
+    'fly_to_location',
+    { latitude: 25.033, longitude: 121.5654, rangeM: 1200 },
+  ]);
+  assert.match(handle.ui.detail.textContent, /台北 101/);
+
+  row.children[1].dispatchEvent(new Event('click'));
+  assert.deepEqual(runnerCalls[1], [
+    'fly_to_location',
+    { latitude: 22.605, longitude: 120.29, rangeM: 3500 },
+  ]);
+  assert.equal(runnerCalls.length, 2);
+  await settle(2);
+});
+
+test('without a runner no quick place chips are created', () => {
+  installDom();
+  const { handle } = mount();
+  const row = handle.ui.root.querySelector('#gev-quick-places');
+  assert.ok(row, 'the row exists for layout');
+  assert.equal(row.children.length, 0, 'but stays empty — no runner, no chips');
 });
 
 test('submit with nothing heard names the active voice language', async () => {
