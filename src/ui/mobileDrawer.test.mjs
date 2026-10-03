@@ -144,7 +144,7 @@ test('the drawer chrome mounts, opens, and closes through every path', async () 
 
 test('the drawer is CSS-first and mobile-only (contract)', () => {
   const shell = read('./styles/mobile-shell.css');
-  assert.match(shell, /#mobile-drawer-toggle,\s*#mobile-drawer-header\s*\{[^}]*display:\s*none;/,
+  assert.match(shell, /#mobile-drawer-toggle,\s*#mobile-drawer-header,\s*\.gev-quick-places\s*\{[^}]*display:\s*none;/,
     'desktop must not render drawer chrome');
   assert.match(shell, /@media \(max-width: 720px\)\s*\{[\s\S]*?body\.mobile-drawer-open\s*\{[^}]*overflow-y:\s*auto;/,
     'the body becomes the scroll sheet');
