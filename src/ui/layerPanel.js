@@ -5,6 +5,7 @@ export { layerFeedState } from '../data/feedState.js';
 import { GUIDANCE_STATUSES } from '../loadingFeedback.js';
 import { keySetupRequirement } from '../keySetupCore.mjs';
 import { createWeatherPanel } from './weatherPanel.js';
+import { getVoiceLang } from './voiceLang.js';
 const FEED_STATE_LABELS = Object.freeze({
   nominal: 'ON',
   loading: 'LOADING',
@@ -49,7 +50,7 @@ const PANEL_GROUPS = [
     ids: ['rocket-launches', 'earthquakes', 'local-firms', 'fire-perimeters'],
   },
   {
-    label: '台灣',
+    label: { zh: '台灣', en: 'Taiwan' },
     ids: ['taiwan-quake', 'taiwan-cctv', 'taiwan-typhoon', 'taiwan-aqi'],
   },
   {
@@ -80,14 +81,20 @@ const PANEL_LABELS = {
   'alpr-cameras': 'Mapped ALPR Cameras',
   'local-datacenters': 'Data Centers',
   'local-firms': 'Active Fires',
-  'taiwan-quake': '台灣地震',
-  'taiwan-cctv': '台灣道路攝影',
-  'taiwan-typhoon': '颱風路徑',
-  'taiwan-aqi': '空氣品質',
+  'taiwan-quake': { zh: '台灣地震', en: 'Taiwan Quake' },
+  'taiwan-cctv': { zh: '台灣道路攝影', en: 'Road CCTV' },
+  'taiwan-typhoon': { zh: '颱風路徑', en: 'Typhoon Track' },
+  'taiwan-aqi': { zh: '空氣品質', en: 'Air Quality' },
 };
 
+/** Resolve a label that may be a plain string or a { zh, en } pair. */
+const langLabel = (value) =>
+  typeof value === 'object' && value !== null
+    ? (value[getVoiceLang()] ?? value.zh)
+    : value;
+
 function panelLabel(layer) {
-  return PANEL_LABELS[layer.id] || layer.name;
+  return langLabel(PANEL_LABELS[layer.id]) || layer.name;
 }
 
 /**
@@ -137,6 +144,11 @@ export class LayerPanel {
     this._destroyed = false;
     this._cancelRowControlsRefresh = null;
     this._recentImageryFactory = null;
+    // The 中/EN switch (voiceDock tier button) re-renders layer names live.
+    this._onLangChange = () => {
+      if (!this._destroyed) this._renderToggles();
+    };
+    globalThis.document?.addEventListener?.('gev-lang-change', this._onLangChange);
     this._recentImageryPanel = null;
   }
   mount(container) {
@@ -186,6 +198,7 @@ export class LayerPanel {
   destroy() {
     if (this._destroyed) return;
     this._destroyed = true;
+    globalThis.document?.removeEventListener?.('gev-lang-change', this._onLangChange);
     this._releaseBindings();
     this._weatherPanel?.destroy();
     this._weatherPanel = null;
@@ -211,7 +224,8 @@ export class LayerPanel {
     for (const layer of layers) {
       if (!layer.showInTogglePanel) continue;
       const group =
-        PANEL_ORDER[PANEL_POSITIONS.get(layer.id)]?.label ?? 'Other layers';
+        langLabel(PANEL_ORDER[PANEL_POSITIONS.get(layer.id)]?.label) ??
+        'Other layers';
       if (group && group !== previousGroup) {
         const heading = document.createElement('h3');
         heading.className = 'data-layer-group-heading';

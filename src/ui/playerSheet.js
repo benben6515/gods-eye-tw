@@ -13,6 +13,9 @@
  * click takes, so persistence and auto-expand logic stay in sync); drag up —
  * or a plain tap — toggles fullscreen.
  */
+
+import { t } from './uiStrings.js';
+
 const MOBILE_QUERY = '(max-width: 720px)';
 
 export function installPlayerSheet({
@@ -75,7 +78,7 @@ export function installPlayerSheet({
       handle.id = 'cctv-sheet-handle';
       handle.type = 'button';
       handle.className = 'cctv-sheet-handle';
-      handle.setAttribute('aria-label', '拖動：下滑關閉，點一下全螢幕');
+      handle.setAttribute('aria-label', t('sheetHandle'));
       owner.prepend(handle);
     }
     return handle;

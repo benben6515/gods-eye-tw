@@ -9,6 +9,8 @@
  * the flow unit-testable without a browser.
  */
 
+import { t } from './uiStrings.js';
+
 export const VOICE_STATES = Object.freeze([
   'idle',
   'listening',
@@ -122,7 +124,7 @@ export function createVoiceSession({ chat, systemPrompt = '', executeAction = nu
       const reply = extractChatReply(data);
       if (!toolCalls) return reply;
       if (round >= MAX_TOOL_ROUNDS) {
-        return reply || '這個指令太複雜了，請拆成幾個步驟再試。';
+        return reply || t('fallbackReply');
       }
 
       messages.push({

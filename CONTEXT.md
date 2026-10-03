@@ -49,3 +49,13 @@ _Avoid_: autoplay hack, sound unlock
 **Input Zoom**:
 iOS auto-zooms the whole page when an input with font-size < 16px gets focus, and does not reliably zoom back out. All mobile inputs keep ≥16px to prevent it.
 _Avoid_: keyboard bug, zoom glitch
+
+### I18n
+
+**UI Strings Dictionary**:
+The single home of user-visible CJK text (`src/ui/uiStrings.js`); modules must not hardcode Chinese — a contract test fails on any CJK outside comments in consumer files. `t(key)` resolves in the active language; the dock's 中/EN button flips voice + UI + layer names in one tap.
+_Avoid_: hardcoded Chinese, inline ternary translations
+
+**Language Switch**:
+One switch (`gev-voice-lang` in localStorage, with a session fallback when storage is blocked) drives STT/TTS/GLM prompt, UI chrome strings, and drawer layer names. Switching dispatches `gev-lang-change` on `document`; listeners (e.g. the layer panel) re-render label text in place.
+_Avoid_: separate voice/UI toggles, re-mount on switch

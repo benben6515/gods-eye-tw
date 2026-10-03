@@ -5,6 +5,9 @@
 
 const KEY = 'gev-voice-lang';
 
+/** Session fallback when localStorage is unavailable (private mode, Node). */
+let sessionLang = null;
+
 export const VOICE_LANGS = {
   zh: {
     stt: 'zh-TW',
@@ -32,6 +35,7 @@ export const VOICE_LANGS = {
 };
 
 export function getVoiceLang() {
+  if (sessionLang) return sessionLang;
   try {
     return localStorage.getItem(KEY) === 'en' ? 'en' : 'zh';
   } catch {
@@ -40,8 +44,12 @@ export function getVoiceLang() {
 }
 
 export function setVoiceLang(lang) {
+  const next = lang === 'en' ? 'en' : 'zh';
+  // In-memory first: the switch must work even when storage is blocked
+  // (private mode, Node tests) — the persisted value is just a preference.
+  sessionLang = next;
   try {
-    localStorage.setItem(KEY, lang === 'en' ? 'en' : 'zh');
+    localStorage.setItem(KEY, next);
   } catch {
     /* storage blocked — session-only switch */
   }

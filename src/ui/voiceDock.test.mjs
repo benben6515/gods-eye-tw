@@ -70,10 +70,20 @@ function installDom() {
     return node;
   };
 
+  const docListeners = new Map();
   const document = {
     getElementById: (id) => (id === 'gev-voice-control' ? null : (byId.get(id) ?? makeNode(id))),
     createElement: (tag) => makeNode(tag),
     body: makeNode('body'),
+    addEventListener: (type, fn) => {
+      const list = docListeners.get(type) ?? [];
+      list.push(fn);
+      docListeners.set(type, list);
+    },
+    dispatchEvent: (event) => {
+      for (const fn of docListeners.get(event?.type) ?? []) fn(event);
+      return true;
+    },
   };
   globalThis.document = document;
   return document;
@@ -284,6 +294,28 @@ test('without a runner no quick place chips are created', () => {
   const row = handle.ui.root.querySelector('#gev-quick-places');
   assert.ok(row, 'the row exists for layout');
   assert.equal(row.children.length, 0, 'but stays empty — no runner, no chips');
+});
+
+test('the 中/EN switch flips UI strings, chips, and fires gev-lang-change', () => {
+  const doc = installDom();
+  const fired = [];
+  doc.addEventListener('gev-lang-change', () => fired.push(1));
+  const { handle } = mount({ runner: () => Promise.resolve({ ok: true }) });
+  const { tierButton, textInput, detail } = handle.ui;
+  const row = () => handle.ui.root.querySelector('#gev-quick-places');
+
+  tierButton.dispatchEvent(new Event('click'));
+  assert.equal(textInput.placeholder, '…or type a command');
+  assert.equal(detail.textContent, 'Switched to English');
+  assert.equal(tierButton.textContent, '中文', 'the button names the OTHER language');
+  assert.equal(fired.length, 1, 'layer panel and friends re-render on this event');
+  assert.equal(row().children.length, 6, 'chips re-rendered');
+
+  tierButton.dispatchEvent(new Event('click'));
+  assert.equal(textInput.placeholder, '或直接輸入指令…');
+  assert.equal(detail.textContent, '語言切換：中文');
+  assert.equal(tierButton.textContent, 'EN');
+  assert.equal(fired.length, 2);
 });
 
 test('submit with nothing heard names the active voice language', async () => {

@@ -67,7 +67,14 @@ function referencedGlyphs() {
       const assigned = statement.includes('?')
         ? statement.slice(statement.indexOf('?') + 1)
         : statement;
-      for (const literal of assigned.matchAll(STRING_LITERAL)) add(literal[1]);
+      // t('key') is a uiStrings dictionary lookup — its key is never a
+      // glyph name; strip the calls before scanning string literals.
+      const withoutLookups = assigned.replaceAll(
+        /\bt\((['"`])[a-z0-9_]+\1\)/g,
+        '""',
+      );
+      for (const literal of withoutLookups.matchAll(STRING_LITERAL))
+        add(literal[1]);
     }
   }
   return found;

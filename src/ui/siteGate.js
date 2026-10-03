@@ -10,6 +10,8 @@
  * real enforcement point on every protected route.
  */
 
+import { t } from './uiStrings.js';
+
 const STORAGE_KEY = 'gev-site-token';
 
 /** Read the stored site token; null when unavailable (Node, storage blocked). */
@@ -103,7 +105,7 @@ export function showGateOverlay(
   title.textContent = "GOD'S EYE // RESTRICTED";
   const sub = doc.createElement('div');
   sub.className = 'gev-gate-sub';
-  sub.textContent = '此站僅限授權人員 · clearance required';
+  sub.textContent = t('gateSub');
   const input = doc.createElement('input');
   input.className = 'gev-gate-input';
   input.type = 'password';
@@ -140,23 +142,23 @@ export function showGateOverlay(
       if (!response.ok) {
         error.textContent =
           response.status === 429
-            ? '嘗試太多次，稍後再試。'
+            ? t('gateTooMany')
             : response.status === 503
-              ? '閘門未設定（後端缺少 SITE_GATE_PASSWORD）。'
-              : '存取碼錯誤。';
+              ? t('gateNotSet')
+              : t('gateWrong');
         return;
       }
       const data = await response.json().catch(() => null);
       const token = data?.token;
       if (typeof token !== 'string' || !isTokenUsable(token)) {
-        error.textContent = '後端回應異常。';
+        error.textContent = t('gateBadResponse');
         return;
       }
       storeToken(token, storage);
       overlay.remove();
       onUnlock?.();
     } catch {
-      error.textContent = '無法連線後端。';
+      error.textContent = t('gateUnreachable');
     } finally {
       button.disabled = false;
     }

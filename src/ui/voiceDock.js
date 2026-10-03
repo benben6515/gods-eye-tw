@@ -6,6 +6,7 @@ import {
   executeMapAction,
 } from './voiceTransports.js';
 import { voiceLangConfig, getVoiceLang, setVoiceLang } from './voiceLang.js';
+import { t, QUICK_PLACES, placeName } from './uiStrings.js';
 
 /**
  * The dock voice UI (the original God's Eye mic) reborn on the self-hosted
@@ -22,17 +23,17 @@ import { voiceLangConfig, getVoiceLang, setVoiceLang } from './voiceLang.js';
 export function mapEventToDock(event) {
   switch (event?.type) {
     case 'listening':
-      return { status: 'listening', label: 'LISTENING', detail: '聆聽中…再點一下送出' };
+      return { status: 'listening', label: 'LISTENING', detail: t('listening') };
     case 'thinking':
-      return { status: 'executing', label: 'EXECUTING', detail: '思考中…' };
+      return { status: 'executing', label: 'EXECUTING', detail: t('thinking') };
     case 'tool':
-      return { status: 'executing', label: 'EXECUTING', detail: `執行 ${event.name}…` };
+      return { status: 'executing', label: 'EXECUTING', detail: t('runningAction')(event.name) };
     case 'reply':
       return { status: 'executing', label: 'SPEAKING', detail: event.reply };
     case 'speak-failed':
-      return { status: 'idle', label: 'OFF', detail: '（語音播報不可用）' };
+      return { status: 'idle', label: 'OFF', detail: t('speakUnavailable') };
     case 'error':
-      return { status: 'error', label: 'ERROR', detail: event.message || '語音系統錯誤' };
+      return { status: 'error', label: 'ERROR', detail: event.message || t('voiceError') };
     case 'idle':
       return { status: 'idle', label: 'OFF', detail: 'VOICE STANDBY' };
     default:
@@ -57,12 +58,11 @@ export function mountVoiceDock({
   const ui = createVoiceControl();
   // The heading tier slot becomes the 中/EN language switch.
   ui.tierButton.hidden = false;
-  ui.tierButton.textContent = getVoiceLang() === 'zh' ? 'EN' : '中文';
+  ui.tierButton.textContent = t('switchTo');
   ui.tierButton.title = 'Switch voice language';
   ui.costValue.textContent = 'ZAI · FREE';
-  ui.helpDetail.textContent = '點一下開始錄音 · 再點一下送出';
-  const textPlaceholder = () =>
-    getVoiceLang() === 'zh' ? '或直接輸入指令…' : '…or type a command';
+  ui.helpDetail.textContent = t('helpRecord');
+  const textPlaceholder = () => t('textPlaceholder');
   ui.textInput.placeholder = textPlaceholder();
 
   let recognition = null;
@@ -115,8 +115,8 @@ export function mountVoiceDock({
         session.stopListening();
         ui.detail.textContent =
           event?.error === 'no-speech'
-            ? '沒聽到聲音，再試一次。'
-            : '麥克風不可用。';
+            ? t('noSpeech')
+            : t('micUnavailable');
       }
     };
     rec.onend = () => {
@@ -184,8 +184,7 @@ export function mountVoiceDock({
         // Nothing recognized — settle back to idle with a hint that names
         // the active STT language (a zh speaker left in EN mode sees this).
         session.stopListening();
-        ui.detail.textContent =
-          `沒有聽到內容（語音語言：${getVoiceLang() === 'zh' ? '中文' : 'English'}）。`;
+        ui.detail.textContent = t('nothingHeard');
         return;
       }
       ui.detail.textContent = `「${text}」`;
@@ -218,9 +217,17 @@ export function mountVoiceDock({
   ui.tierButton.addEventListener('click', () => {
     const next = getVoiceLang() === 'zh' ? 'en' : 'zh';
     setVoiceLang(next);
-    ui.tierButton.textContent = next === 'zh' ? 'EN' : '中文';
+    ui.tierButton.textContent = t('switchTo');
     ui.textInput.placeholder = textPlaceholder();
-    ui.detail.textContent = next === 'zh' ? '語音切換：中文' : 'Voice: English';
+    ui.helpDetail.textContent = t('helpRecord');
+    ui.root
+      .querySelector('#gev-quick-places')
+      ?.setAttribute('aria-label', t('quickPlaces'));
+    ui.expandButton?.setAttribute('aria-label', t('expandVoice'));
+    ui.detail.textContent = t('switched');
+    renderQuickPlaces();
+    // Everything else (drawer layer names, …) follows the same switch.
+    documentImpl.dispatchEvent?.(new Event('gev-lang-change'));
   });
 
   // Mobile Shell: the collapsed dock row expands into the status sheet (see
@@ -241,37 +248,49 @@ export function mountVoiceDock({
 
   // Quick Places (Mobile Shell P3): preset fly-to chips. They fly through
   // the same gevActions runner the voice tools use — no GLM round trip, the
-  // camera just goes. Present only when a runner exists.
-  const QUICK_PLACES = [
-    { code: 'TPE 101', zh: '台北 101', latitude: 25.033, longitude: 121.5654, rangeM: 1200 },
-    { code: 'KHH PORT', zh: '高雄港', latitude: 22.605, longitude: 120.29, rangeM: 3500 },
-    { code: 'MZG', zh: '澎湖', latitude: 23.571, longitude: 119.57, rangeM: 30000 },
-    { code: 'SML', zh: '日月潭', latitude: 23.865, longitude: 120.928, rangeM: 5000 },
-    { code: 'CCK', zh: '清泉崗', latitude: 24.264, longitude: 120.621, rangeM: 4000 },
-    { code: 'KTNT', zh: '墾丁', latitude: 21.95, longitude: 120.79, rangeM: 12000 },
-  ];
+  // camera just goes. Present only when a runner exists. Re-rendered on a
+  // language switch so the place names follow the 中/EN state.
   const flyToQuickPlace = runner
     ? (name, args) => runner(name, args)
     : (name, args) => executeMapAction(name, args);
   const quickPlaces = ui.root.querySelector('#gev-quick-places');
-  for (const place of runner ? QUICK_PLACES : []) {
-    const chip = documentImpl.createElement('button');
-    chip.type = 'button';
-    chip.className = 'gev-quick-place';
-    chip.innerHTML = `<span class="gev-qp-code">${place.code}</span><span class="gev-qp-zh">${place.zh}</span>`;
-    chip.addEventListener('click', () => {
-      ui.detail.textContent = `飛往 ${place.zh}…`;
-      collapseDock();
-      Promise.resolve(
-        flyToQuickPlace('fly_to_location', {
-          latitude: place.latitude,
-          longitude: place.longitude,
-          rangeM: place.rangeM,
-        }),
-      ).catch(() => {});
-    });
-    quickPlaces?.appendChild(chip);
-  }
+  // Chips are built once and relabeled in place on a language switch —
+  // clearing innerHTML is hostile to the stub-DOM test harness.
+  const chipRefs = [];
+  const renderQuickPlaces = () => {
+    if (!quickPlaces || !runner) return;
+    if (chipRefs.length === 0) {
+      for (const place of QUICK_PLACES) {
+        const chip = documentImpl.createElement('button');
+        chip.type = 'button';
+        chip.className = 'gev-quick-place';
+        const code = documentImpl.createElement('span');
+        code.className = 'gev-qp-code';
+        code.textContent = place.code;
+        const label = documentImpl.createElement('span');
+        label.className = 'gev-qp-zh';
+        chip.appendChild(code);
+        chip.appendChild(label);
+        chip.addEventListener('click', () => {
+          ui.detail.textContent = t('flyTo')(placeName(place));
+          collapseDock();
+          Promise.resolve(
+            flyToQuickPlace('fly_to_location', {
+              latitude: place.latitude,
+              longitude: place.longitude,
+              rangeM: place.rangeM,
+            }),
+          ).catch(() => {});
+        });
+        quickPlaces.appendChild(chip);
+        chipRefs.push({ place, label });
+      }
+      return;
+    }
+    for (const { place, label } of chipRefs)
+      label.textContent = placeName(place);
+  };
+  renderQuickPlaces();
 
   // Text fallback — types a command when the mic path is unavailable.
   const askText = () => {

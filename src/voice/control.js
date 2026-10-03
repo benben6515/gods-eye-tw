@@ -1,4 +1,6 @@
 /** Build the voice control independently of its connection backend. */
+import { t } from '../ui/uiStrings.js';
+
 export function createVoiceControl({ reset = false } = {}) {
   let root = document.getElementById('gev-voice-control');
   if (root && reset) {
@@ -28,14 +30,14 @@ export function createVoiceControl({ reset = false } = {}) {
       </div>
       <div class="gev-voice-readout">
         <div id="gev-voice-detail">VOICE STANDBY</div>
-        <input id="gev-voice-text-input" type="text" placeholder="或直接輸入指令…" autocomplete="off" spellcheck="false" enterkeyhint="send" />
+        <input id="gev-voice-text-input" type="text" placeholder="${t('textPlaceholder')}" autocomplete="off" spellcheck="false" enterkeyhint="send" />
       </div>
       <!-- Mobile Shell: Quick Places (P3) — populated by voiceDock.js. -->
-      <div id="gev-quick-places" class="gev-quick-places" role="group" aria-label="快捷地點"></div>
+      <div id="gev-quick-places" class="gev-quick-places" role="group" aria-label="${t('quickPlaces')}"></div>
       <!-- Mobile Shell (≤720px) only: expands the collapsed dock row into the
            status sheet. Hidden on desktop — the dock shows everything there. -->
       <button id="gev-voice-expand" class="gev-voice-expand" type="button"
-        aria-expanded="false" aria-label="展開語音狀態">
+        aria-expanded="false" aria-label="${t('expandVoice')}">
         <span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span>
       </button>
       <div id="gev-voice-help" class="gev-voice-help-tray" role="tooltip">
